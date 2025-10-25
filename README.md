@@ -49,15 +49,23 @@ cd i3wm-mcp
 
 2. **Install dependencies:**
 ```bash
-pip install "mcp[cli]" pydantic
+#pip install "mcp[cli]" pydantic
+sudo pacman -Sy python-pydantic
+TODO:
+pipx install mcp
+pipx install fastmcp
+python -m venv venv
+./venv/bin/pip install fastmcp pydantic  
 ```
 
 3. **Add to Claude:**
 
 Using the MCP CLI (recommended):
 ```bash
-# Add the server to Claude Desktop configuration
-mcp add i3 --command "python" --args "/absolute/path/to/i3wm-mcp/i3_mcp.py"
+# Add the server to Claude configuration
+#mcp add i3 --command "python" --args "/absolute/path/to/i3wm-mcp/i3_mcp.py"
+#claude mcp add --transport stdio i3 python /home/mordi/git/i3wm-mcp/i3_mcp.py
+claude mcp add --transport stdio i3 /home/f/git/i3wm-mcp/venv/bin/python /home/fardin/git/i3wm-mcp/i3_mcp.py
 ```
 
 Or manually edit `~/.claude.json`:
@@ -72,7 +80,7 @@ Or manually edit `~/.claude.json`:
 }
 ```
 
-4. **Restart Claude Desktop** and start using natural language to control i3!
+4. **Restart Claude** and start using natural language to control i3!
 
 
 ### Verification
@@ -92,3 +100,6 @@ Try:
 - "Focus my Firefox window"
 
 ---
+
+## TODO
+* Add documentation for models for cleaner lookup
