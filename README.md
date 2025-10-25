@@ -49,11 +49,11 @@ cd i3wm-mcp
 
 2. **Install dependencies:**
 ```bash
-#pip install "mcp[cli]" pydantic
 sudo pacman -Sy python-pydantic
-TODO:
 pipx install mcp
 pipx install fastmcp
+
+# depending on setup, maybe the following is enough for you
 python -m venv venv
 ./venv/bin/pip install fastmcp pydantic  
 ```
@@ -63,9 +63,7 @@ python -m venv venv
 Using the MCP CLI (recommended):
 ```bash
 # Add the server to Claude configuration
-#mcp add i3 --command "python" --args "/absolute/path/to/i3wm-mcp/i3_mcp.py"
-#claude mcp add --transport stdio i3 python /home/mordi/git/i3wm-mcp/i3_mcp.py
-claude mcp add --transport stdio i3 /home/f/git/i3wm-mcp/venv/bin/python /home/fardin/git/i3wm-mcp/i3_mcp.py
+claude mcp add --transport stdio i3 /absolute/path/to/i3wm-mcp/venv/bin/python /absolute/path/to/i3wm-mcp/i3_mcp.py
 ```
 
 Or manually edit `~/.claude.json`:
