@@ -237,3 +237,21 @@ async def test_layout_no_focused_window_and_no_workspace_given_errors(fake):
     result = json.loads(await call("i3_query", what="layout"))
     assert result["success"] is False
     assert "focused" in result["error"].lower()
+
+
+@pytest.mark.asyncio
+async def test_layout_defaults_to_workspace_of_a_focused_floating_window(fake):
+    t = layout_fixture_tree()
+    workspace_five = t["nodes"][0]["nodes"][1]["nodes"][0]
+    tab_two = workspace_five["nodes"][0]["nodes"][0]["nodes"][1]
+    assert tab_two["id"] == 12
+    tab_two["focused"] = False
+    float_one = workspace_five["floating_nodes"][0]["nodes"][0]
+    assert float_one["id"] == 14
+    float_one["focused"] = True
+    fake.query_replies[ipc.GET_TREE] = t
+    result = json.loads(await call("i3_query", what="layout"))
+    assert result["success"] is True
+    assert result["workspace"] == "5"
+    assert result["floating"][0]["con_id"] == 14
+    assert result["floating"][0]["focused"] is True

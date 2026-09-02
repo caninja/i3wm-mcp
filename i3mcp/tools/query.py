@@ -70,9 +70,8 @@ async def i3_query(
 ) -> str:
     """Read i3 state: the window tree, workspaces, outputs, marks, config, bars, or binding modes.
 
-    Window records carry con_id, workspace and output, which is what the other
-    tools' `criteria` argument expects. Absent booleans mean false; `workspace`
-    accepts a name or a bare number.
+    Window records carry con_id, workspace and output, which the other tools'
+    `criteria` argument expects. Absent booleans mean false; `rect` is `[x, y, width, height]`; `workspace` accepts a name or a bare number.
     layout: nested containers of one workspace, with con_ids that i3_layout can target.
     """
     conn = ipc.get_connection()
