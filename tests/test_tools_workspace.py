@@ -1,51 +1,51 @@
 import json
 
 from i3mcp import ipc
-from i3mcp.tools.workspace import i3_workspace
+from tests.conftest import call
 
 
 async def test_switch_by_name(fake):
-    await i3_workspace(action="switch", name="web")
+    await call("i3_workspace", action="switch", name="web")
     assert fake.last_command == 'workspace "web"'
 
 
 async def test_switch_by_number(fake):
-    await i3_workspace(action="switch", name="3", by_number=True)
+    await call("i3_workspace", action="switch", name="3", by_number=True)
     assert fake.last_command == "workspace number 3"
 
 
 async def test_switch_no_auto_back_and_forth(fake):
-    await i3_workspace(action="switch", name="web", no_auto_back_and_forth=True)
+    await call("i3_workspace", action="switch", name="web", no_auto_back_and_forth=True)
     assert fake.last_command == 'workspace --no-auto-back-and-forth "web"'
 
 
 async def test_navigate_next(fake):
-    await i3_workspace(action="navigate", direction="next")
+    await call("i3_workspace", action="navigate", direction="next")
     assert fake.last_command == "workspace next"
 
 
 async def test_navigate_back_and_forth(fake):
-    await i3_workspace(action="navigate", direction="back_and_forth")
+    await call("i3_workspace", action="navigate", direction="back_and_forth")
     assert fake.last_command == "workspace back_and_forth"
 
 
 async def test_rename_focused(fake):
-    await i3_workspace(action="rename", new_name="work")
+    await call("i3_workspace", action="rename", new_name="work")
     assert fake.last_command == 'rename workspace to "work"'
 
 
 async def test_rename_specific(fake):
-    await i3_workspace(action="rename", name="1", new_name="browser")
+    await call("i3_workspace", action="rename", name="1", new_name="browser")
     assert fake.last_command == 'rename workspace "1" to "browser"'
 
 
 async def test_move_to_output(fake):
-    await i3_workspace(action="move_to_output", output="HDMI-1")
+    await call("i3_workspace", action="move_to_output", output="HDMI-1")
     assert fake.last_command == "move workspace to output HDMI-1"
 
 
 async def test_move_named_workspace_to_output_switches_first(fake):
-    await i3_workspace(action="move_to_output", name="3", output="HDMI-1")
+    await call("i3_workspace", action="move_to_output", name="3", output="HDMI-1")
     assert fake.last_command == 'workspace "3"; move workspace to output HDMI-1'
 
 
@@ -55,7 +55,7 @@ async def test_bulk_move_skips_unknown_workspaces(fake):
         {"name": "2", "output": "eDP"},
     ]
     result = json.loads(
-        await i3_workspace(action="bulk_move", names=["1", "2", "99"], output="HDMI-1")
+        await call("i3_workspace", action="bulk_move", names=["1", "2", "99"], output="HDMI-1")
     )
     assert result["moved"] == ["1", "2"]
     assert result["skipped"][0]["name"] == "99"
@@ -68,12 +68,12 @@ async def test_bulk_move_preserves_one_workspace(fake):
         {"name": "2", "output": "eDP"},
     ]
     result = json.loads(
-        await i3_workspace(action="bulk_move", names=["1", "2"], output="HDMI-1", preserve="2")
+        await call("i3_workspace", action="bulk_move", names=["1", "2"], output="HDMI-1", preserve="2")
     )
     assert result["moved"] == ["1"]
 
 
 async def test_switch_requires_a_name(fake):
-    result = json.loads(await i3_workspace(action="switch"))
+    result = json.loads(await call("i3_workspace", action="switch"))
     assert result["success"] is False
     assert fake.commands == []

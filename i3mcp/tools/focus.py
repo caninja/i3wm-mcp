@@ -9,7 +9,7 @@ from pydantic import Field
 from .. import render
 from ..criteria import WindowCriteria, prefix_command
 from ..enums import Direction
-from ..server import mcp, resolve_defaults
+from ..server import mcp
 
 
 @mcp.tool(
@@ -22,7 +22,6 @@ from ..server import mcp, resolve_defaults
         "openWorldHint": False,
     },
 )
-@resolve_defaults
 async def i3_focus(
     direction: Direction | None = Field(
         default=None, description="Focus the neighbouring window: left, right, up, or down."

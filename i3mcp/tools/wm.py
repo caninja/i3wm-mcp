@@ -8,7 +8,7 @@ from pydantic import Field
 
 from .. import render
 from ..criteria import escape_value
-from ..server import mcp, resolve_defaults
+from ..server import mcp
 
 
 @mcp.tool(
@@ -21,7 +21,6 @@ from ..server import mcp, resolve_defaults
         "openWorldHint": True,
     },
 )
-@resolve_defaults
 async def i3_wm(
     action: Literal[
         "exec", "reload", "restart", "mode", "nop", "shmlog", "debuglog", "append_layout"

@@ -1,11 +1,10 @@
 import json
 
-from i3mcp.criteria import WindowCriteria
-from i3mcp.tools.resize import i3_resize
+from tests.conftest import call
 
 
 async def test_resize_grow_width_px(fake):
-    await i3_resize(mode="grow", direction="right", amount=50)
+    await call("i3_resize", mode="grow", direction="right", amount=50)
     assert fake.last_command == "resize grow right 50 px"
 
 
@@ -13,37 +12,37 @@ async def test_resize_shrink_ppt(fake):
     # i3 4.25.1 rejects a bare ppt amount for resize grow/shrink -- verified
     # live: "Expected one of these tokens: 'px', 'or', <end>". ppt is only
     # valid there as a fallback "or" clause after a px amount.
-    await i3_resize(mode="shrink", direction="up", amount=5, unit="ppt")
+    await call("i3_resize", mode="shrink", direction="up", amount=5, unit="ppt")
     assert fake.last_command == "resize shrink up 5 px or 5 ppt"
 
 
 async def test_resize_set_both_dimensions_px(fake):
-    await i3_resize(mode="set", width=800, height=600)
+    await call("i3_resize", mode="set", width=800, height=600)
     assert fake.last_command == "resize set width 800 px height 600 px"
 
 
 async def test_resize_set_width_only_ppt(fake):
-    await i3_resize(mode="set", width=60, unit="ppt")
+    await call("i3_resize", mode="set", width=60, unit="ppt")
     assert fake.last_command == "resize set width 60 ppt"
 
 
 async def test_resize_set_does_not_force_floating(fake):
-    await i3_resize(mode="set", width=800, height=600)
+    await call("i3_resize", mode="set", width=800, height=600)
     assert "floating enable" not in fake.last_command
 
 
 async def test_resize_with_criteria(fake):
-    await i3_resize(criteria=WindowCriteria(con_mark="term"), mode="grow", direction="right", amount=10)
+    await call("i3_resize", criteria={"con_mark": "term"}, mode="grow", direction="right", amount=10)
     assert fake.last_command == r'[con_mark="^\Qterm\E$"] resize grow right 10 px'
 
 
 async def test_resize_grow_requires_direction(fake):
-    result = json.loads(await i3_resize(mode="grow", amount=10))
+    result = json.loads(await call("i3_resize", mode="grow", amount=10))
     assert result["success"] is False
     assert fake.commands == []
 
 
 async def test_resize_set_requires_a_dimension(fake):
-    result = json.loads(await i3_resize(mode="set"))
+    result = json.loads(await call("i3_resize", mode="set"))
     assert result["success"] is False
     assert fake.commands == []

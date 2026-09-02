@@ -8,7 +8,7 @@ from pydantic import Field
 
 from .. import render
 from ..criteria import WindowCriteria, escape_value, prefix_command
-from ..server import mcp, resolve_defaults
+from ..server import mcp
 
 Toggle = Literal["enable", "disable", "toggle"]
 
@@ -23,7 +23,6 @@ Toggle = Literal["enable", "disable", "toggle"]
         "openWorldHint": False,
     },
 )
-@resolve_defaults
 async def i3_window(
     criteria: WindowCriteria | None = Field(
         default=None, description="Which window to change. Omit for the focused one."

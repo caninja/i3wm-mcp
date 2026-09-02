@@ -6,7 +6,7 @@ from pydantic import Field
 
 from .. import render
 from ..criteria import WindowCriteria, prefix_command
-from ..server import mcp, resolve_defaults
+from ..server import mcp
 
 
 @mcp.tool(
@@ -19,7 +19,6 @@ from ..server import mcp, resolve_defaults
         "openWorldHint": False,
     },
 )
-@resolve_defaults
 async def i3_kill(
     criteria: WindowCriteria | None = Field(
         default=None,

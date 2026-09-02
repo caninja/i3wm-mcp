@@ -7,7 +7,7 @@ from pydantic import Field
 from .. import render
 from ..criteria import WindowCriteria, escape_value, prefix_command
 from ..enums import Direction, Unit
-from ..server import mcp, resolve_defaults
+from ..server import mcp
 
 _RELATIVE_WORKSPACES = {"next", "prev", "current", "next_on_output", "prev_on_output"}
 
@@ -22,7 +22,6 @@ _RELATIVE_WORKSPACES = {"next", "prev", "current", "next_on_output", "prev_on_ou
         "openWorldHint": False,
     },
 )
-@resolve_defaults
 async def i3_move(
     criteria: WindowCriteria | None = Field(
         default=None, description="Which window to move. Omit to move the focused one."

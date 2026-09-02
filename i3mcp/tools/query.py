@@ -10,7 +10,7 @@ from pydantic import Field
 from .. import ipc, render, tree
 from ..enums import ResponseFormat
 from ..ipc import I3Error
-from ..server import mcp, resolve_defaults
+from ..server import mcp
 
 _SIMPLE_QUERIES = {
     "workspaces": (ipc.GET_WORKSPACES, "workspaces"),
@@ -32,7 +32,6 @@ _SIMPLE_QUERIES = {
         "openWorldHint": False,
     },
 )
-@resolve_defaults
 async def i3_query(
     what: Literal[
         "tree",

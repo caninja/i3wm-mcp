@@ -1,6 +1,14 @@
 import pytest
 
+import i3mcp.tools  # noqa: F401  (registers every tool)
 from i3mcp import ipc
+from i3mcp.server import mcp
+
+
+async def call(name: str, /, **arguments) -> str:
+    """Invoke a tool the way an MCP client does and return its text payload."""
+    result = await mcp.call_tool(name, arguments)
+    return result.content[0].text
 
 
 class FakeTransport:

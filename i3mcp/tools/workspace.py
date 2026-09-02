@@ -9,7 +9,7 @@ from pydantic import Field
 from .. import ipc, render
 from ..criteria import escape_value
 from ..ipc import I3Error
-from ..server import mcp, resolve_defaults
+from ..server import mcp
 
 
 def _workspace_ref(name: str, by_number: bool, no_auto_back_and_forth: bool = False) -> str:
@@ -29,7 +29,6 @@ def _workspace_ref(name: str, by_number: bool, no_auto_back_and_forth: bool = Fa
         "openWorldHint": False,
     },
 )
-@resolve_defaults
 async def i3_workspace(
     action: Literal["switch", "navigate", "rename", "move_to_output", "bulk_move"] = Field(
         description="What to do with the workspace."

@@ -10,7 +10,7 @@ from .. import ipc, render, tree
 from ..criteria import WindowCriteria, escape_value, prefix_command
 from ..enums import MatchMode
 from ..ipc import I3Error
-from ..server import mcp, resolve_defaults
+from ..server import mcp
 
 
 @mcp.tool(
@@ -23,7 +23,6 @@ from ..server import mcp, resolve_defaults
         "openWorldHint": False,
     },
 )
-@resolve_defaults
 async def i3_scratchpad(
     action: Literal["show", "move", "hide_all"] = Field(
         description="show toggles a window in or out; move sends one in; hide_all sends every visible one back."
