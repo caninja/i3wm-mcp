@@ -1,16 +1,37 @@
-"""Shared enumerations. All are (str, Enum) so pydantic renders them as strings."""
+"""Shared argument vocabularies, plus the workspace keywords i3 treats specially.
+
+The value sets are `Literal` aliases rather than `Enum` classes: pydantic inlines
+a Literal as a plain `enum` list, where an Enum class becomes a `$defs` entry plus
+a `$ref` in every schema that mentions it. The values are the strings i3 itself
+accepts, so they need no `.value` unwrapping at the call site. `ResponseFormat` is
+the one holdout, and goes away with `i3_query(response_format=...)`.
+"""
 
 from __future__ import annotations
 
 from enum import Enum
+from typing import Literal
 
+Direction = Literal["left", "right", "up", "down"]
 
-class Direction(str, Enum):
-    LEFT = "left"
-    RIGHT = "right"
-    UP = "up"
-    DOWN = "down"
+MatchMode = Literal["exact", "substring", "regex"]
 
+Urgency = Literal["latest", "oldest", "newest", "last", "recent", "first"]
+
+WindowType = Literal[
+    "normal",
+    "dialog",
+    "utility",
+    "toolbar",
+    "splash",
+    "menu",
+    "dropdown_menu",
+    "popup_menu",
+    "tooltip",
+    "notification",
+]
+
+Unit = Literal["px", "ppt"]
 
 # Shared by move.py and workspace.py: names i3 treats as bare keywords rather
 # than quoted workspace names. move.py also accepts "current", which is only
@@ -18,39 +39,6 @@ class Direction(str, Enum):
 WORKSPACE_KEYWORDS = frozenset(
     {"next", "prev", "next_on_output", "prev_on_output", "back_and_forth"}
 )
-
-
-class MatchMode(str, Enum):
-    EXACT = "exact"
-    SUBSTRING = "substring"
-    REGEX = "regex"
-
-
-class Urgency(str, Enum):
-    LATEST = "latest"
-    OLDEST = "oldest"
-    NEWEST = "newest"
-    LAST = "last"
-    RECENT = "recent"
-    FIRST = "first"
-
-
-class WindowType(str, Enum):
-    NORMAL = "normal"
-    DIALOG = "dialog"
-    UTILITY = "utility"
-    TOOLBAR = "toolbar"
-    SPLASH = "splash"
-    MENU = "menu"
-    DROPDOWN_MENU = "dropdown_menu"
-    POPUP_MENU = "popup_menu"
-    TOOLTIP = "tooltip"
-    NOTIFICATION = "notification"
-
-
-class Unit(str, Enum):
-    PX = "px"
-    PPT = "ppt"
 
 
 class ResponseFormat(str, Enum):

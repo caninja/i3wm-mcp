@@ -8,7 +8,6 @@ from pydantic import Field
 
 from .. import ipc, render, tree
 from ..criteria import WindowCriteria, escape_value, prefix_command
-from ..enums import MatchMode
 from ..ipc import I3Error
 from ..server import mcp
 
@@ -46,7 +45,7 @@ async def i3_scratchpad(
         if mark is not None and has_criteria:
             return render.err("Give mark or criteria for show, not both.")
         if mark is not None:
-            selector = WindowCriteria(con_mark=mark, match=MatchMode.EXACT).to_selector()
+            selector = WindowCriteria(con_mark=mark, match="exact").to_selector()
             return render.run(f"{selector} scratchpad show")
         if has_criteria:
             return render.run(f"{criteria.to_selector()} scratchpad show")

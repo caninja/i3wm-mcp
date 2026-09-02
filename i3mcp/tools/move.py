@@ -28,7 +28,7 @@ async def i3_move(
     ),
     direction: Direction | None = Field(default=None, description="Move one step in this direction."),
     amount: int | None = Field(default=None, description="With direction: how far to move.", ge=1),
-    unit: Unit = Field(default=Unit.PX, description="Unit for amount and position: px or ppt."),
+    unit: Unit = Field(default="px", description="Unit for amount and position: px or ppt."),
     workspace: str | None = Field(
         default=None,
         description="Target workspace name, or next/prev/current for a relative move.",
@@ -91,9 +91,9 @@ async def i3_move(
         return render.err(f"Specify only one destination, got: {', '.join(chosen)}.")
 
     if direction is not None:
-        command = f"move {direction.value}"
+        command = f"move {direction}"
         if amount is not None:
-            command += f" {amount} {unit.value}"
+            command += f" {amount} {unit}"
     elif workspace is not None:
         flag = "--no-auto-back-and-forth " if no_auto_back_and_forth else ""
         if workspace in _RELATIVE_WORKSPACES:
@@ -109,7 +109,7 @@ async def i3_move(
         if position_x is None or position_y is None:
             return render.err("Give both position_x and position_y, or neither.")
         prefix = "move absolute position" if absolute else "move position"
-        command = f"{prefix} {position_x} {unit.value} {position_y} {unit.value}"
+        command = f"{prefix} {position_x} {unit} {position_y} {unit}"
     elif center:
         command = "move absolute position center" if absolute else "move position center"
     elif to_mouse:

@@ -36,7 +36,7 @@ async def i3_resize(
     width: int | None = Field(default=None, description="For mode=set: target width."),
     height: int | None = Field(default=None, description="For mode=set: target height."),
     unit: Unit = Field(
-        default=Unit.PX,
+        default="px",
         description="px for pixels, ppt for percent of the parent container.",
     ),
 ) -> str:
@@ -49,14 +49,14 @@ async def i3_resize(
             return render.err("mode=set needs width, height, or both.")
         parts = ["resize set"]
         if width is not None:
-            parts.append(f"width {width} {unit.value}")
+            parts.append(f"width {width} {unit}")
         if height is not None:
-            parts.append(f"height {height} {unit.value}")
+            parts.append(f"height {height} {unit}")
         command = " ".join(parts)
     else:
         if direction is None:
             return render.err(f"mode={mode} needs a direction.")
-        if unit == Unit.PPT:
+        if unit == "ppt":
             # i3 4.25.1's grammar for resize grow/shrink requires a px amount;
             # ppt is only accepted as a fallback "or" clause (verified live:
             # a bare "resize grow right 1 ppt" is a parse error -- "Expected
@@ -65,6 +65,6 @@ async def i3_resize(
             # gives the intended ppt behaviour on a tiling container.
             command = f"resize {mode} {direction} {amount} px or {amount} ppt"
         else:
-            command = f"resize {mode} {direction} {amount} {unit.value}"
+            command = f"resize {mode} {direction} {amount} {unit}"
 
     return render.run(prefix_command(criteria, command))

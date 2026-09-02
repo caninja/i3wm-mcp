@@ -73,7 +73,7 @@ async def i3_focus(
         return render.err(f"Specify only one of these at a time, got: {', '.join(chosen)}.")
 
     if direction is not None:
-        return render.run(f"focus {direction.value}")
+        return render.run(f"focus {direction}")
     if target is not None:
         return render.run(f"focus {target}")
     if sibling is not None:
