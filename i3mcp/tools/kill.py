@@ -5,7 +5,7 @@ from __future__ import annotations
 from pydantic import Field
 
 from .. import render
-from ..criteria import WindowCriteria, prefix_command
+from ..criteria import WindowCriteria
 from ..server import mcp
 
 
@@ -29,4 +29,4 @@ async def i3_kill(
 
     Destructive: confirm the target before calling without criteria.
     """
-    return render.run(prefix_command(criteria, "kill"))
+    return render.run_targeted(criteria, "kill")

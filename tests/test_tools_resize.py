@@ -42,8 +42,11 @@ async def test_resize_set_does_not_force_floating(fake):
 
 
 async def test_resize_with_criteria(fake):
-    await call("i3_resize", criteria={"con_mark": "term"}, mode="grow", direction="right", amount=10)
-    assert fake.last_command == r'[con_mark="^\Qterm\E$"] resize grow right 10 px'
+    result = json.loads(
+        await call("i3_resize", criteria={"con_mark": "m1"}, mode="grow", direction="right", amount=10)
+    )
+    assert fake.last_command == r'[con_mark="^\Qm1\E$"] resize grow right 10 px'
+    assert result["targets"] == [{"con_id": 1001, "name": "alpha one", "window_class": "Alpha"}]
 
 
 async def test_resize_grow_requires_direction(fake):

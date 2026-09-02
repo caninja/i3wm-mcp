@@ -9,8 +9,9 @@ async def test_kill_focused(fake):
 
 
 async def test_kill_by_criteria(fake):
-    await call("i3_kill", criteria={"con_id": 7})
-    assert fake.last_command == "[con_id=7] kill"
+    result = json.loads(await call("i3_kill", criteria={"con_id": 1003}))
+    assert fake.last_command == "[con_id=1003] kill"
+    assert result["targets"] == [{"con_id": 1003, "name": "gamma three", "window_class": "Gamma"}]
 
 
 async def test_floating_enable(fake):
@@ -19,8 +20,8 @@ async def test_floating_enable(fake):
 
 
 async def test_floating_toggle_with_criteria(fake):
-    await call("i3_window", criteria={"window_class": "Thunar"}, floating="toggle")
-    assert fake.last_command == r'[class="^\QThunar\E$"] floating toggle'
+    await call("i3_window", criteria={"window_class": "Beta"}, floating="toggle")
+    assert fake.last_command == r'[class="^\QBeta\E$"] floating toggle'
 
 
 async def test_sticky(fake):
@@ -84,8 +85,8 @@ async def test_multiple_properties_chain_with_commas(fake):
 
 
 async def test_criteria_applies_once_to_a_chain(fake):
-    await call("i3_window", criteria={"con_id": 5}, floating="enable", sticky="enable")
-    assert fake.last_command == "[con_id=5] floating enable, sticky enable"
+    await call("i3_window", criteria={"con_id": 1001}, floating="enable", sticky="enable")
+    assert fake.last_command == "[con_id=1001] floating enable, sticky enable"
 
 
 async def test_window_requires_a_property(fake):

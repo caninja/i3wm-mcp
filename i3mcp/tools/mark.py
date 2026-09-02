@@ -7,7 +7,7 @@ from typing import Literal
 from pydantic import Field
 
 from .. import render
-from ..criteria import WindowCriteria, escape_value, prefix_command
+from ..criteria import WindowCriteria, escape_value
 from ..server import mcp
 
 
@@ -56,4 +56,4 @@ async def i3_mark(
     else:
         command = "unmark"
 
-    return render.run(prefix_command(criteria, command))
+    return render.run_targeted(criteria, command)

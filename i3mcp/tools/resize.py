@@ -7,7 +7,7 @@ from typing import Literal
 from pydantic import Field
 
 from .. import render
-from ..criteria import WindowCriteria, prefix_command
+from ..criteria import WindowCriteria
 from ..enums import Unit
 from ..server import mcp
 
@@ -67,4 +67,4 @@ async def i3_resize(
         else:
             command = f"resize {mode} {direction} {amount} {unit}"
 
-    return render.run(prefix_command(criteria, command))
+    return render.run_targeted(criteria, command)

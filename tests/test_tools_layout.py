@@ -24,8 +24,9 @@ async def test_split_toggle(fake):
 
 
 async def test_layout_with_criteria(fake):
-    await call("i3_layout", criteria={"con_id": 3}, layout="stacking")
-    assert fake.last_command == "[con_id=3] layout stacking"
+    result = json.loads(await call("i3_layout", criteria={"con_id": 1003}, layout="stacking"))
+    assert fake.last_command == "[con_id=1003] layout stacking"
+    assert result["targets"] == [{"con_id": 1003, "name": "gamma three", "window_class": "Gamma"}]
 
 
 async def test_layout_requires_an_argument(fake):

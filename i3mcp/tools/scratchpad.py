@@ -7,7 +7,7 @@ from typing import Literal
 from pydantic import Field
 
 from .. import ipc, render, tree
-from ..criteria import WindowCriteria, escape_value, prefix_command
+from ..criteria import WindowCriteria, escape_value
 from ..ipc import I3Error
 from ..server import mcp
 
@@ -45,10 +45,10 @@ async def i3_scratchpad(
         if mark is not None and has_criteria:
             return render.err("Give mark or criteria for show, not both.")
         if mark is not None:
-            selector = WindowCriteria(con_mark=mark, match="exact").to_selector()
-            return render.run(f"{selector} scratchpad show")
+            by_mark = WindowCriteria(con_mark=mark, match="exact")
+            return render.run_targeted(by_mark, "scratchpad show")
         if has_criteria:
-            return render.run(f"{criteria.to_selector()} scratchpad show")
+            return render.run_targeted(criteria, "scratchpad show")
         return render.run("scratchpad show")
 
     if action == "move":
@@ -56,7 +56,7 @@ async def i3_scratchpad(
         if mark is not None:
             parts.append(f'mark --replace "{escape_value(mark)}"')
         parts.append("move scratchpad")
-        return render.run(prefix_command(criteria, ", ".join(parts)))
+        return render.run_targeted(criteria, ", ".join(parts))
 
     # hide_all: a scratchpad window is visible when it sits on a real workspace.
     try:

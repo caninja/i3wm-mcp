@@ -6,6 +6,9 @@ quoting works, and \\" escapes correctly inside a quoted criteria value.
 
 from __future__ import annotations
 
+import re
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from .enums import MatchMode, Urgency, WindowType
@@ -24,6 +27,21 @@ def pattern_for(value: str, mode: MatchMode) -> str:
     if mode == "substring":
         return quoted
     return f"^{quoted}$"
+
+
+def value_matches(pattern: str, value: Any, mode: MatchMode, field: str) -> bool:
+    """Apply one criteria value to one record value, the way i3 would."""
+    if value is None:
+        return False
+    text = str(value)
+    if mode == "substring":
+        return pattern in text
+    if mode == "regex":
+        try:
+            return re.search(pattern, text) is not None
+        except re.error as exc:
+            raise ValueError(f"Invalid regex for criteria field '{field}': {exc}") from exc
+    return pattern == text
 
 
 class WindowCriteria(BaseModel):
@@ -55,6 +73,35 @@ class WindowCriteria(BaseModel):
     match: MatchMode = Field(
         default="exact", description="How strings match: exact (default), substring, regex."
     )
+
+    def matches(self, record: dict) -> bool:
+        """Does a window record satisfy every field set here? Fields are ANDed."""
+        for field, pattern, value in (
+            ("window_class", self.window_class, record.get("window_class")),
+            ("instance", self.instance, record.get("instance")),
+            ("title", self.title, record.get("name")),
+            ("window_role", self.window_role, record.get("window_role")),
+            ("workspace", self.workspace, record.get("workspace")),
+        ):
+            if pattern is not None and not value_matches(pattern, value, self.match, field):
+                return False
+        if self.con_mark is not None and not any(
+            value_matches(self.con_mark, mark, self.match, "con_mark")
+            for mark in record.get("marks") or []
+        ):
+            return False
+        if self.window_type is not None and record.get("window_type") != self.window_type:
+            return False
+        if self.con_id is not None and record.get("con_id") != self.con_id:
+            return False
+        if self.window_id is not None and record.get("window_id") != self.window_id:
+            return False
+        if self.urgent is not None and not record.get("urgent", False):
+            return False
+        if self.floating is not None and record.get("floating", False) is not self.floating:
+            return False
+        # `all` puts no condition on a window, so it adds no clause here.
+        return True
 
     def is_empty(self) -> bool:
         return not self.to_selector()

@@ -7,7 +7,7 @@ from typing import Literal
 from pydantic import Field
 
 from .. import render
-from ..criteria import WindowCriteria, prefix_command
+from ..criteria import WindowCriteria
 from ..enums import Direction
 from ..server import mcp
 
@@ -84,4 +84,4 @@ async def i3_focus(
         return render.run(f"focus output {output}")
 
     verb = "focus workspace" if focus_workspace else "focus"
-    return render.run(prefix_command(criteria, verb))
+    return render.run_targeted(criteria, verb)

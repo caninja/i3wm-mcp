@@ -7,7 +7,7 @@ from typing import Literal
 from pydantic import Field
 
 from .. import render
-from ..criteria import WindowCriteria, prefix_command
+from ..criteria import WindowCriteria
 from ..server import mcp
 
 
@@ -43,4 +43,4 @@ async def i3_layout(
         parts.append(f"split {split}")
     if not parts:
         return render.err("Specify layout, split, or both.")
-    return render.run(prefix_command(criteria, ", ".join(parts)))
+    return render.run_targeted(criteria, ", ".join(parts))

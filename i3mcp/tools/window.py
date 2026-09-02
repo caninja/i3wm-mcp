@@ -7,7 +7,7 @@ from typing import Literal
 from pydantic import Field
 
 from .. import render
-from ..criteria import WindowCriteria, escape_value, prefix_command
+from ..criteria import WindowCriteria, escape_value
 from ..server import mcp
 
 Toggle = Literal["enable", "disable", "toggle"]
@@ -84,4 +84,4 @@ async def i3_window(
             "title_format, or title_window_icon."
         )
 
-    return render.run(prefix_command(criteria, ", ".join(parts)))
+    return render.run_targeted(criteria, ", ".join(parts))

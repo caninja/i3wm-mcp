@@ -5,7 +5,7 @@ from __future__ import annotations
 from pydantic import Field
 
 from .. import render
-from ..criteria import WindowCriteria, escape_value, prefix_command
+from ..criteria import WindowCriteria, escape_value
 from ..enums import Direction, Unit, WORKSPACE_KEYWORDS
 from ..server import mcp
 
@@ -126,7 +126,6 @@ async def i3_move(
         else:
             command = f"swap container with id {swap_with_window_id}"
 
-    full = prefix_command(criteria, command)
     if follow and workspace is not None:
         if workspace in _RELATIVE_WORKSPACES:
             follow_cmd = f"workspace {workspace}"
@@ -134,5 +133,7 @@ async def i3_move(
             follow_cmd = f"workspace number {workspace}"
         else:
             follow_cmd = f'workspace "{escape_value(workspace)}"'
-        full = f"{full}; {follow_cmd}"
-    return render.run(full)
+        # The ";" ends the criteria's scope in i3, so the follow-up switch runs
+        # unconditionally -- exactly as it did when the prefix was applied here.
+        command = f"{command}; {follow_cmd}"
+    return render.run_targeted(criteria, command)

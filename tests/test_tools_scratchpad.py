@@ -11,19 +11,20 @@ async def test_show_default_scratchpad(fake):
 
 
 async def test_show_by_mark_matches_what_move_stores(fake):
-    await call("i3_scratchpad", action="show", mark="term")
-    assert fake.last_command == r'[con_mark="^\Qterm\E$"] scratchpad show'
+    result = json.loads(await call("i3_scratchpad", action="show", mark="m1"))
+    assert fake.last_command == r'[con_mark="^\Qm1\E$"] scratchpad show'
+    assert result["targets"] == [{"con_id": 1001, "name": "alpha one", "window_class": "Alpha"}]
 
 
 async def test_show_by_criteria(fake):
-    await call("i3_scratchpad", action="show", criteria={"window_class": "term"})
-    assert fake.last_command == r'[class="^\Qterm\E$"] scratchpad show'
+    await call("i3_scratchpad", action="show", criteria={"window_class": "Beta"})
+    assert fake.last_command == r'[class="^\QBeta\E$"] scratchpad show'
 
 
 async def test_show_rejects_mark_and_criteria_together(fake):
     result = json.loads(
         await call(
-            "i3_scratchpad", action="show", mark="term", criteria={"window_class": "term"}
+            "i3_scratchpad", action="show", mark="m1", criteria={"window_class": "Alpha"}
         )
     )
     assert result["success"] is False
@@ -41,8 +42,8 @@ async def test_move_without_mark(fake):
 
 
 async def test_move_with_criteria(fake):
-    await call("i3_scratchpad", action="move", criteria={"con_id": 9}, mark="term")
-    assert fake.last_command == '[con_id=9] mark --replace "term", move scratchpad'
+    await call("i3_scratchpad", action="move", criteria={"con_id": 1002}, mark="term")
+    assert fake.last_command == '[con_id=1002] mark --replace "term", move scratchpad'
 
 
 async def test_hide_all_hides_visible_scratchpad_windows(fake):

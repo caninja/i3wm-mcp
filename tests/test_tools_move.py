@@ -89,8 +89,9 @@ async def test_move_to_scratchpad(fake):
 
 
 async def test_move_with_criteria_prefixes(fake):
-    await call("i3_move", criteria={"con_id": 42}, workspace="web")
-    assert fake.last_command == '[con_id=42] move container to workspace "web"'
+    result = json.loads(await call("i3_move", criteria={"con_id": 1002}, workspace="web"))
+    assert fake.last_command == '[con_id=1002] move container to workspace "web"'
+    assert result["targets"] == [{"con_id": 1002, "name": "beta two", "window_class": "Beta"}]
 
 
 async def test_swap_with_mark(fake):

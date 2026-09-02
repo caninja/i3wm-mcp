@@ -34,13 +34,14 @@ async def test_focus_output_by_name(fake):
 
 
 async def test_focus_by_criteria(fake):
-    await call("i3_focus", criteria={"window_class": "firefox"})
-    assert fake.last_command == r'[class="^\Qfirefox\E$"] focus'
+    result = json.loads(await call("i3_focus", criteria={"window_class": "Beta"}))
+    assert fake.last_command == r'[class="^\QBeta\E$"] focus'
+    assert result["targets"] == [{"con_id": 1002, "name": "beta two", "window_class": "Beta"}]
 
 
 async def test_focus_workspace_of_matching_window(fake):
-    await call("i3_focus", criteria={"con_mark": "term"}, focus_workspace=True)
-    assert fake.last_command == r'[con_mark="^\Qterm\E$"] focus workspace'
+    await call("i3_focus", criteria={"con_mark": "m1"}, focus_workspace=True)
+    assert fake.last_command == r'[con_mark="^\Qm1\E$"] focus workspace'
 
 
 async def test_focus_urgent_uses_i3_vocabulary(fake):

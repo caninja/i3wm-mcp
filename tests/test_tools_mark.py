@@ -19,8 +19,9 @@ async def test_mark_toggle(fake):
 
 
 async def test_mark_with_criteria(fake):
-    await call("i3_mark", criteria={"window_class": "firefox"}, mark="browser")
-    assert fake.last_command == r'[class="^\Qfirefox\E$"] mark --replace "browser"'
+    result = json.loads(await call("i3_mark", criteria={"window_class": "Alpha"}, mark="browser"))
+    assert fake.last_command == r'[class="^\QAlpha\E$"] mark --replace "browser"'
+    assert result["targets"] == [{"con_id": 1001, "name": "alpha one", "window_class": "Alpha"}]
 
 
 async def test_unmark_specific(fake):
