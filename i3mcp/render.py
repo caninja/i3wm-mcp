@@ -25,15 +25,20 @@ def err(message: str, **fields: Any) -> str:
     return _dump({"success": False, "error": message, **fields})
 
 
+def command_error(command: str, exc: I3Error, **extra: Any) -> str:
+    """Render a failed i3 command, carrying i3's own replies when it gave any."""
+    payload: dict[str, Any] = {"command": command, **extra}
+    if exc.replies is not None:
+        payload["i3_replies"] = exc.replies
+    return err(str(exc), **payload)
+
+
 def run(command: str, **extra: Any) -> str:
     """Run an i3 command and render the outcome."""
     try:
         ipc.get_connection().command(command)
     except I3Error as exc:
-        payload: dict[str, Any] = {"command": command, **extra}
-        if exc.replies is not None:
-            payload["i3_replies"] = exc.replies
-        return err(str(exc), **payload)
+        return command_error(command, exc, **extra)
     return ok(command=command, **extra)
 
 

@@ -1,5 +1,9 @@
 import json
 
+import pytest
+from mcp.server.mcpserver.exceptions import ToolError
+
+from i3mcp import ipc
 from tests.conftest import call
 
 
@@ -82,3 +86,123 @@ async def test_exit_is_not_an_allowed_action(fake):
     from i3mcp.tools import wm
 
     assert "exit" not in str(inspect.signature(wm.i3_wm))
+
+
+class FakeEventStream:
+    """Stands in for ipc.EventStream, yielding canned payloads then timing out."""
+
+    def __init__(self, events, log):
+        self.events = list(events)
+        self.timeouts: list[float] = []
+        self.closed = False
+        log.append("subscribe")
+
+    def next_event(self, timeout):
+        self.timeouts.append(timeout)
+        return self.events.pop(0) if self.events else None
+
+    def close(self):
+        self.closed = True
+
+
+def _stream(monkeypatch, fake, events):
+    """Wire a FakeEventStream in and record the order of subscribe vs. command."""
+    log: list[str] = []
+    streams: list[FakeEventStream] = []
+    plain_command = fake.command
+
+    def command(cmd):
+        log.append("command")
+        return plain_command(cmd)
+
+    monkeypatch.setattr(fake, "command", command)
+
+    def subscribe(event_names):
+        assert event_names == ["window"]
+        stream = FakeEventStream(events, log)
+        streams.append(stream)
+        return stream
+
+    monkeypatch.setattr(ipc, "subscribe", subscribe)
+    return log, streams
+
+
+NEW_WINDOW = {
+    "change": "new",
+    "container": {
+        "id": 94208,
+        "window": 39845889,
+        "name": "probe",
+        "output": "OUT-1",
+        "floating": "auto_off",
+        "marks": [],
+        "window_type": "normal",
+        "window_properties": {"class": "XTerm", "instance": "xterm"},
+        "rect": {"x": 0, "y": 0, "width": 800, "height": 600},
+    },
+}
+
+
+async def test_exec_with_wait_returns_the_new_window(fake, monkeypatch):
+    _stream(monkeypatch, fake, [{"change": "focus", "container": {"id": 1}}, NEW_WINDOW])
+    result = json.loads(await call("i3_wm", action="exec", command="xterm", wait_seconds=2))
+    assert result["success"] is True
+    assert result["window"]["con_id"] == 94208
+    assert result["window"]["window_class"] == "XTerm"
+    assert result["window"]["name"] == "probe"
+    assert result["waited_seconds"] >= 0
+    assert fake.last_command == 'exec --no-startup-id "xterm"'
+
+
+async def test_exec_with_wait_returns_a_compact_record(fake, monkeypatch):
+    """The event container carries no workspace, so those keys stay out."""
+    _stream(monkeypatch, fake, [NEW_WINDOW])
+    result = json.loads(await call("i3_wm", action="exec", command="xterm", wait_seconds=2))
+    assert "workspace" not in result["window"]
+    assert "floating" not in result["window"]
+    assert "parent_layout" not in result["window"]
+
+
+async def test_exec_subscribes_before_running_the_command(fake, monkeypatch):
+    log, _ = _stream(monkeypatch, fake, [NEW_WINDOW])
+    await call("i3_wm", action="exec", command="xterm", wait_seconds=2)
+    assert log == ["subscribe", "command"]
+
+
+async def test_exec_with_wait_reports_a_timeout(fake, monkeypatch):
+    _stream(monkeypatch, fake, [])
+    result = json.loads(await call("i3_wm", action="exec", command="xterm", wait_seconds=0.2))
+    assert result["success"] is True
+    assert result["window"] is None
+    assert result["timed_out"] is True
+    assert "i3_query" in result["hint"]
+
+
+async def test_exec_with_wait_closes_the_stream(fake, monkeypatch):
+    _, streams = _stream(monkeypatch, fake, [NEW_WINDOW])
+    await call("i3_wm", action="exec", command="xterm", wait_seconds=2)
+    assert streams[0].closed is True
+
+
+async def test_exec_with_wait_closes_the_stream_when_the_command_fails(fake, monkeypatch):
+    _, streams = _stream(monkeypatch, fake, [NEW_WINDOW])
+    fake.command_replies = [[{"success": False, "error": "no such command"}]]
+    result = json.loads(await call("i3_wm", action="exec", command="xterm", wait_seconds=2))
+    assert result["success"] is False
+    assert result["command"] == 'exec --no-startup-id "xterm"'
+    assert streams[0].closed is True
+
+
+async def test_exec_without_wait_never_subscribes(fake, monkeypatch):
+    log, streams = _stream(monkeypatch, fake, [NEW_WINDOW])
+    result = json.loads(await call("i3_wm", action="exec", command="xterm"))
+    assert log == ["command"]
+    assert streams == []
+    assert "window" not in result
+
+
+@pytest.mark.parametrize("value", [0.05, 61])
+async def test_wait_seconds_out_of_range_is_rejected(fake, value):
+    with pytest.raises(ToolError):
+        await call("i3_wm", action="exec", command="xterm", wait_seconds=value)
+    assert fake.commands == []

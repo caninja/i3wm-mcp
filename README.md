@@ -119,7 +119,7 @@ Try:
   `"3: web"` — plain `workspace 3` would create a new workspace called `3`
   instead of switching to the existing one.
 - `i3_wm(action="exec")` returns as soon as i3 accepts the command, before the
-  new window exists. Poll `i3_query(what="tree")` for it rather than assuming
-  it's there immediately.
+  new window exists. Pass `wait_seconds` to get the new window's con_id back
+  rather than assuming it's there immediately.
 - `exit` is not exposed on purpose — terminating the i3 session isn't
   something a tool call should be able to do by accident.
