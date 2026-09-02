@@ -30,7 +30,7 @@ async def test_focus_cycle_prev(fake):
 
 async def test_focus_output_by_name(fake):
     await call("i3_focus", output="HDMI-1")
-    assert fake.last_command == "focus output HDMI-1"
+    assert fake.last_command == 'focus output "HDMI-1"'
 
 
 async def test_focus_by_criteria(fake):
@@ -59,3 +59,13 @@ async def test_focus_rejects_conflicting_arguments(fake):
     result = json.loads(await call("i3_focus", direction="left", target="parent"))
     assert result["success"] is False
     assert fake.commands == []
+
+
+async def test_focus_output_quotes_a_name_with_a_semicolon(fake):
+    await call("i3_focus", output="OUT-1; nop injected")
+    assert fake.last_command == 'focus output "OUT-1; nop injected"'
+
+
+async def test_focus_output_quotes_a_relative_keyword(fake):
+    await call("i3_focus", output="primary")
+    assert fake.last_command == 'focus output "primary"'

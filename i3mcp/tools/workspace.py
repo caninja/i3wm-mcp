@@ -77,7 +77,7 @@ async def i3_workspace(
     if action == "move_to_output":
         if output is None:
             return render.err("action=move_to_output needs an output.")
-        command = f"move workspace to output {output}"
+        command = f'move workspace to output "{escape_value(output)}"'
         if name is not None:
             command = f"{_workspace_ref(name, by_number)}; {command}"
         return render.run(command)
@@ -99,7 +99,10 @@ async def i3_workspace(
         if ws_name not in existing:
             skipped.append({"name": ws_name, "reason": "does not exist"})
             continue
-        command = f'{_workspace_ref(ws_name, False)}; move workspace to output {output}'
+        command = (
+            f'{_workspace_ref(ws_name, False)}; '
+            f'move workspace to output "{escape_value(output)}"'
+        )
         try:
             ipc.get_connection().command(command)
         except I3Error as exc:

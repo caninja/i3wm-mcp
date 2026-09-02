@@ -44,7 +44,7 @@ async def test_mode(fake):
 
 async def test_nop(fake):
     await call("i3_wm", action="nop", comment="marker")
-    assert fake.last_command == "nop marker"
+    assert fake.last_command == 'nop "marker"'
 
 
 async def test_shmlog_on(fake):
@@ -206,3 +206,8 @@ async def test_wait_seconds_out_of_range_is_rejected(fake, value):
     with pytest.raises(ToolError):
         await call("i3_wm", action="exec", command="xterm", wait_seconds=value)
     assert fake.commands == []
+
+
+async def test_nop_quotes_a_comment_with_a_semicolon(fake):
+    await call("i3_wm", action="nop", comment="hello; nop injected")
+    assert fake.last_command == 'nop "hello; nop injected"'

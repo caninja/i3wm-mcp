@@ -7,7 +7,7 @@ from typing import Literal
 from pydantic import Field
 
 from .. import render
-from ..criteria import WindowCriteria
+from ..criteria import WindowCriteria, escape_value
 from ..enums import Direction
 from ..server import mcp
 
@@ -76,7 +76,7 @@ async def i3_focus(
     if cycle is not None:
         return render.run(f"focus {cycle}")
     if output is not None:
-        return render.run(f"focus output {output}")
+        return render.run(f'focus output "{escape_value(output)}"')
 
     verb = "focus workspace" if focus_workspace else "focus"
     return render.run_targeted(criteria, verb)

@@ -96,7 +96,7 @@ async def i3_move(
             command = f'move {flag}container to workspace "{escape_value(workspace)}"'
     elif output is not None:
         subject = "workspace" if move_workspace else "container"
-        command = f"move {subject} to output {output}"
+        command = f'move {subject} to output "{escape_value(output)}"'
     elif has_position:
         if position_x is None or position_y is None:
             return render.err("Give both position_x and position_y, or neither.")

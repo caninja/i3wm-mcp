@@ -7,6 +7,7 @@ from typing import Literal
 from pydantic import Field
 
 from .. import render
+from ..criteria import escape_value
 from ..server import mcp
 
 
@@ -33,11 +34,14 @@ async def i3_bar(
     ),
 ) -> str:
     """Set i3bar's display mode or hidden state. Give mode, hidden_state, or both."""
+    # Verified on i3 4.25.1: a quoted bar id parses, and `bar` takes no
+    # criteria prefix, so an unquoted one would let ";" inject a command.
+    suffix = f' "{escape_value(bar_id)}"' if bar_id else ""
     parts = []
     if mode is not None:
-        parts.append(f"bar mode {mode}" + (f" {bar_id}" if bar_id else ""))
+        parts.append(f"bar mode {mode}{suffix}")
     if hidden_state is not None:
-        parts.append(f"bar hidden_state {hidden_state}" + (f" {bar_id}" if bar_id else ""))
+        parts.append(f"bar hidden_state {hidden_state}{suffix}")
     if not parts:
         return render.err("Specify mode, hidden_state, or both.")
     return render.run("; ".join(parts))

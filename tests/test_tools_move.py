@@ -45,12 +45,12 @@ async def test_move_and_follow_emits_two_commands(fake):
 
 async def test_move_to_output(fake):
     await call("i3_move", output="HDMI-1")
-    assert fake.last_command == "move container to output HDMI-1"
+    assert fake.last_command == 'move container to output "HDMI-1"'
 
 
 async def test_move_workspace_to_output(fake):
     await call("i3_move", output="HDMI-1", move_workspace=True)
-    assert fake.last_command == "move workspace to output HDMI-1"
+    assert fake.last_command == 'move workspace to output "HDMI-1"'
 
 
 async def test_move_position(fake):
@@ -120,3 +120,15 @@ async def test_move_rejects_half_a_position(fake):
     result = json.loads(await call("i3_move", position_x=100))
     assert result["success"] is False
     assert fake.commands == []
+
+
+async def test_move_to_output_quotes_a_name_with_a_semicolon(fake):
+    """An unquoted output name would end the command and inject a second one."""
+    await call("i3_move", output="OUT-1; nop injected")
+    assert fake.last_command == 'move container to output "OUT-1; nop injected"'
+
+
+async def test_move_to_output_quotes_a_relative_keyword(fake):
+    # Verified live on i3 4.25.1: quoted keywords resolve exactly as bare ones.
+    await call("i3_move", output="right")
+    assert fake.last_command == 'move container to output "right"'

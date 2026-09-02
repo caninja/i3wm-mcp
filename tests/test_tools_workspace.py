@@ -46,18 +46,18 @@ async def test_rename_specific(fake):
 
 async def test_move_to_output(fake):
     await call("i3_workspace", action="move_to_output", output="HDMI-1")
-    assert fake.last_command == "move workspace to output HDMI-1"
+    assert fake.last_command == 'move workspace to output "HDMI-1"'
 
 
 async def test_move_named_workspace_to_output_switches_first(fake):
     await call("i3_workspace", action="move_to_output", name="3", output="HDMI-1")
-    assert fake.last_command == 'workspace "3"; move workspace to output HDMI-1'
+    assert fake.last_command == 'workspace "3"; move workspace to output "HDMI-1"'
 
 
 async def test_bulk_move_skips_unknown_workspaces(fake):
     fake.query_replies[ipc.GET_WORKSPACES] = [
-        {"name": "1", "output": "eDP"},
-        {"name": "2", "output": "eDP"},
+        {"name": "1", "output": "OUT-2"},
+        {"name": "2", "output": "OUT-2"},
     ]
     result = json.loads(
         await call("i3_workspace", action="bulk_move", names=["1", "2", "99"], output="HDMI-1")
@@ -69,8 +69,8 @@ async def test_bulk_move_skips_unknown_workspaces(fake):
 
 async def test_bulk_move_preserves_one_workspace(fake):
     fake.query_replies[ipc.GET_WORKSPACES] = [
-        {"name": "1", "output": "eDP"},
-        {"name": "2", "output": "eDP"},
+        {"name": "1", "output": "OUT-2"},
+        {"name": "2", "output": "OUT-2"},
     ]
     result = json.loads(
         await call("i3_workspace", action="bulk_move", names=["1", "2"], output="HDMI-1", preserve="2")
@@ -82,3 +82,14 @@ async def test_switch_requires_a_name(fake):
     result = json.loads(await call("i3_workspace", action="switch"))
     assert result["success"] is False
     assert fake.commands == []
+
+
+async def test_move_to_output_quotes_a_name_with_a_semicolon(fake):
+    await call("i3_workspace", action="move_to_output", output="OUT-1; nop injected")
+    assert fake.last_command == 'move workspace to output "OUT-1; nop injected"'
+
+
+async def test_bulk_move_quotes_the_output(fake):
+    fake.query_replies[ipc.GET_WORKSPACES] = [{"name": "1", "output": "OUT-2"}]
+    await call("i3_workspace", action="bulk_move", names=["1"], output="Some Output")
+    assert fake.last_command == 'workspace "1"; move workspace to output "Some Output"'

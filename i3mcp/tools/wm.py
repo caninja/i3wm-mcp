@@ -110,7 +110,7 @@ async def i3_wm(
         return render.run(f'mode "{escape_value(mode_name)}"')
 
     if action == "nop":
-        return render.run(f"nop {comment}" if comment else "nop")
+        return render.run(f'nop "{escape_value(comment)}"' if comment else "nop")
 
     if action in ("shmlog", "debuglog"):
         if toggle is None:
