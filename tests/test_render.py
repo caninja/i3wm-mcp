@@ -1,9 +1,6 @@
 import json
 
-import pytest
-
 from i3mcp import render
-from i3mcp.ipc import I3Error
 
 
 def test_ok_is_valid_json_with_success_true():

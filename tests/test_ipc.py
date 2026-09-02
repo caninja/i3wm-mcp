@@ -178,3 +178,24 @@ def test_subscribe_opens_its_own_socket_and_reads_an_event(tmp_path):
     threading.Thread(target=_serve_event, args=(srv, event), daemon=True).start()
     with ipc.subscribe(["window"], socket_path=sock_path) as stream:
         assert stream.next_event(2.0) == event
+
+
+def test_subscribe_reuses_the_command_connections_socket_path(tmp_path, monkeypatch):
+    """Re-resolving the path forks `i3 --get-socketpath`; the connection knows it."""
+    sock_path = str(tmp_path / "event.sock")
+    srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    srv.bind(sock_path)
+    srv.listen(1)
+    event = {"change": "new", "container": {"id": 12, "name": "probe"}}
+    threading.Thread(target=_serve_event, args=(srv, event), daemon=True).start()
+
+    def no_lookup():
+        raise AssertionError("subscribe must not re-resolve the socket path")
+
+    monkeypatch.setattr(ipc, "find_socket_path", no_lookup)
+    ipc.set_connection(ipc.I3Connection(socket_path=sock_path))
+    try:
+        with ipc.subscribe(["window"]) as stream:
+            assert stream.next_event(2.0) == event
+    finally:
+        ipc.set_connection(None)

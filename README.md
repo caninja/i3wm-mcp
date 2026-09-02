@@ -5,7 +5,7 @@
 A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server providing programmatic control of the [i3 window manager](https://i3wm.org/). This server exposes 13 tools covering i3 functionality, enabling AI assistants to manage windows, workspaces, layouts, gaps, and more through natural conversation.
 
 [![MCP](https://img.shields.io/badge/MCP-Compatible-blue)](https://modelcontextprotocol.io/)
-[![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![i3wm](https://img.shields.io/badge/i3wm-4.x-orange)](https://i3wm.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -81,7 +81,7 @@ and resolved automatically by `uv`. There is nothing else to install by hand.
 | `i3_layout` | Set a container's layout or split orientation. |
 | `i3_workspace` | Switch, navigate, rename, or move workspaces between outputs. |
 | `i3_mark` | Set or remove marks on a window. |
-| `i3_scratchpad` | Show, hide, or move windows in the scratchpad, keyed by mark. |
+| `i3_scratchpad` | Move windows into the scratchpad, show one by mark or by criteria, or hide every shown one. |
 | `i3_gaps` | Set or adjust inner/outer/edge gaps. |
 | `i3_bar` | Set i3bar's display mode or hidden state. |
 | `i3_wm` | Launch applications, optionally waiting for the new window; reload/restart i3; switch binding mode; or control logging. |

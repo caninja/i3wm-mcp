@@ -16,14 +16,23 @@ from ..server import mcp
 TIMEOUT_HINT = "The command was accepted but no new window appeared in time; check i3_query."
 
 
+class SubscribeFailed(Exception):
+    """ipc.subscribe failed, so the command was never sent."""
+
+
 def _launch_and_wait(cmd: str, wait_seconds: float) -> tuple[dict | None, float]:
     """Run cmd and return i3's first 'new' window container, plus seconds waited.
 
     Subscribing before the command runs is what makes this reliable: the window
-    appears within milliseconds, so a stream opened afterwards can miss it.
+    appears within milliseconds, so a stream opened afterwards can miss it. The
+    handshake is itself a round-trip to i3, so the clock starts only once it is
+    done -- otherwise setup eats the caller's wait_seconds.
     """
+    try:
+        stream = ipc.subscribe(["window"])
+    except (I3Error, OSError) as exc:
+        raise SubscribeFailed(str(exc)) from exc
     started = time.monotonic()
-    stream = ipc.subscribe(["window"])
     try:
         ipc.get_connection().command(cmd)
         deadline = started + wait_seconds
@@ -92,6 +101,8 @@ async def i3_wm(
             return render.run(cmd)
         try:
             container, waited = await asyncio.to_thread(_launch_and_wait, cmd, wait_seconds)
+        except SubscribeFailed as exc:
+            return render.err(f"Cannot subscribe to i3 events: {exc}", command=cmd)
         except I3Error as exc:
             return render.command_error(cmd, exc)
         if container is None:

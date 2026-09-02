@@ -211,3 +211,65 @@ async def test_wait_seconds_out_of_range_is_rejected(fake, value):
 async def test_nop_quotes_a_comment_with_a_semicolon(fake):
     await call("i3_wm", action="nop", comment="hello; nop injected")
     assert fake.last_command == 'nop "hello; nop injected"'
+
+
+class FakeClock:
+    """A monotonic clock the test moves by hand, standing in for the time module."""
+
+    def __init__(self):
+        self.now = 0.0
+
+    def monotonic(self):
+        return self.now
+
+
+async def test_wait_budget_starts_after_the_subscribe_handshake(fake, monkeypatch):
+    """Opening the event socket is a round-trip to i3; it must not eat wait_seconds."""
+    from i3mcp.tools import wm
+
+    clock = FakeClock()
+    monkeypatch.setattr(wm, "time", clock)
+    streams: list[FakeEventStream] = []
+
+    def subscribe(event_names):
+        clock.now += 1.0
+        stream = FakeEventStream([], [])
+        streams.append(stream)
+        return stream
+
+    monkeypatch.setattr(ipc, "subscribe", subscribe)
+    result = json.loads(await call("i3_wm", action="exec", command="xterm", wait_seconds=0.5))
+    assert result["timed_out"] is True
+    assert streams[0].timeouts == [0.5]
+
+
+async def test_wait_timeouts_shrink_across_events(fake, monkeypatch):
+    _, streams = _stream(monkeypatch, fake, [{"change": "focus", "container": {"id": 1}}, NEW_WINDOW])
+    await call("i3_wm", action="exec", command="xterm", wait_seconds=2)
+    timeouts = streams[0].timeouts
+    assert len(timeouts) == 2
+    assert all(timeout > 0 for timeout in timeouts)
+    assert timeouts[1] < timeouts[0]
+
+
+async def test_exec_reports_a_refused_subscription_and_sends_no_command(fake, monkeypatch):
+    def subscribe(event_names):
+        raise ipc.I3Error("i3 refused the event subscription for ['window']")
+
+    monkeypatch.setattr(ipc, "subscribe", subscribe)
+    result = json.loads(await call("i3_wm", action="exec", command="xterm", wait_seconds=2))
+    assert result["success"] is False
+    assert "Cannot subscribe to i3 events" in result["error"]
+    assert result["command"] == 'exec --no-startup-id "xterm"'
+    assert fake.commands == []
+
+
+async def test_exec_reports_an_oserror_from_the_subscribe_handshake(fake, monkeypatch):
+    def subscribe(event_names):
+        raise OSError("connection reset by peer")
+
+    monkeypatch.setattr(ipc, "subscribe", subscribe)
+    result = json.loads(await call("i3_wm", action="exec", command="xterm", wait_seconds=2))
+    assert result["success"] is False
+    assert "Cannot subscribe to i3 events" in result["error"]
+    assert fake.commands == []

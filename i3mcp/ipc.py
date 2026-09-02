@@ -197,8 +197,12 @@ class EventStream:
 
 
 def subscribe(events: list[str], socket_path: str | None = None) -> EventStream:
-    """Open a fresh socket subscribed to these i3 events."""
-    path = socket_path or find_socket_path()
+    """Open a fresh socket subscribed to these i3 events.
+
+    Defaults to the path the command connection already resolved: resolving it
+    again forks `i3 --get-socketpath` every time I3SOCK is unset.
+    """
+    path = socket_path or get_connection().socket_path
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     sock.settimeout(5)
     try:

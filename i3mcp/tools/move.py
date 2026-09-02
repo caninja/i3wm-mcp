@@ -31,7 +31,9 @@ async def i3_move(
         description="For amount and position; ppt is percent of the output.",
     ),
     workspace: str | None = Field(
-        default=None, description="Target name, or next/prev/current."
+        default=None,
+        description="Target name, or next/prev/current/next_on_output/"
+        "prev_on_output/back_and_forth.",
     ),
     by_number: bool = Field(
         default=False, description="For workspaces named like '3: web': match by leading number."
