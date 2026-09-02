@@ -8,6 +8,7 @@ from pydantic import Field
 
 from .. import ipc, render
 from ..criteria import escape_value
+from ..enums import WORKSPACE_KEYWORDS
 from ..ipc import I3Error
 from ..server import mcp
 
@@ -66,6 +67,8 @@ async def i3_workspace(
     if action == "switch":
         if name is None:
             return render.err("action=switch needs a name.")
+        if name in WORKSPACE_KEYWORDS:
+            return render.run(f"workspace {name}")
         return render.run(_workspace_ref(name, by_number, no_auto_back_and_forth))
 
     if action == "navigate":

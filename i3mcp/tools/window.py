@@ -45,11 +45,14 @@ async def i3_window(
         default=None,
         description="Title bar template, e.g. '%title (%class)'. Placeholders: %title, %class, %instance, %machine, %shell.",
     ),
-    title_window_icon: Literal["on", "off", "all"] | None = Field(
+    title_window_icon: Literal["on", "off", "toggle"] | None = Field(
         default=None, description="Show the application icon in the title bar."
     ),
     title_window_icon_padding: int | None = Field(
-        default=None, description="Padding in pixels around the title bar icon.", ge=0
+        default=None,
+        description="Padding in pixels around the title bar icon. Valid on its own, "
+        "without title_window_icon.",
+        ge=0,
     ),
 ) -> str:
     """Set floating, sticky, fullscreen, border, or title properties on a window.
@@ -71,10 +74,9 @@ async def i3_window(
     if title_format is not None:
         parts.append(f'title_format "{escape_value(title_format)}"')
     if title_window_icon is not None:
-        command = f"title_window_icon {title_window_icon}"
-        if title_window_icon_padding is not None:
-            command += f" padding {title_window_icon_padding} px"
-        parts.append(command)
+        parts.append(f"title_window_icon {title_window_icon}")
+    if title_window_icon_padding is not None:
+        parts.append(f"title_window_icon padding {title_window_icon_padding}px")
 
     if not parts:
         return render.err(

@@ -16,6 +16,16 @@ async def test_resize_shrink_ppt(fake):
     assert fake.last_command == "resize shrink up 5 px or 5 ppt"
 
 
+async def test_resize_grow_width(fake):
+    await call("i3_resize", mode="grow", direction="width", amount=10)
+    assert fake.last_command == "resize grow width 10 px"
+
+
+async def test_resize_grow_width_ppt(fake):
+    await call("i3_resize", mode="grow", direction="width", amount=10, unit="ppt")
+    assert fake.last_command == "resize grow width 10 px or 10 ppt"
+
+
 async def test_resize_set_both_dimensions_px(fake):
     await call("i3_resize", mode="set", width=800, height=600)
     assert fake.last_command == "resize set width 800 px height 600 px"

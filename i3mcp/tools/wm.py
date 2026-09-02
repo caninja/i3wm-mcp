@@ -49,7 +49,7 @@ async def i3_wm(
     if action == "exec":
         if not command:
             return render.err("action=exec needs a command.")
-        cmd = f"exec --no-startup-id {command}"
+        cmd = f'exec --no-startup-id "{escape_value(command)}"'
         if workspace:
             cmd = f'workspace "{escape_value(workspace)}"; {cmd}'
         return render.run(cmd)
@@ -68,8 +68,6 @@ async def i3_wm(
     if action in ("shmlog", "debuglog"):
         if toggle is None:
             return render.err(f"action={action} needs toggle=on, off, or toggle.")
-        if action == "debuglog" and toggle == "toggle":
-            return render.err("debuglog accepts only on or off.")
         return render.run(f"{action} {toggle}")
 
     if not path:

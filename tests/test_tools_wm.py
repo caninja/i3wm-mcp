@@ -5,12 +5,22 @@ from tests.conftest import call
 
 async def test_exec_uses_no_startup_id(fake):
     await call("i3_wm", action="exec", command="firefox")
-    assert fake.last_command == "exec --no-startup-id firefox"
+    assert fake.last_command == 'exec --no-startup-id "firefox"'
 
 
 async def test_exec_on_a_workspace_switches_first(fake):
     await call("i3_wm", action="exec", command="firefox", workspace="web")
-    assert fake.last_command == 'workspace "web"; exec --no-startup-id firefox'
+    assert fake.last_command == 'workspace "web"; exec --no-startup-id "firefox"'
+
+
+async def test_exec_quotes_a_command_with_semicolons(fake):
+    await call("i3_wm", action="exec", command='sh -c "echo a; echo b"')
+    assert fake.last_command == 'exec --no-startup-id "sh -c \\"echo a; echo b\\""'
+
+
+async def test_exec_quotes_a_command_with_a_comma(fake):
+    await call("i3_wm", action="exec", command="true, true")
+    assert fake.last_command == 'exec --no-startup-id "true, true"'
 
 
 async def test_reload(fake):
@@ -41,6 +51,11 @@ async def test_shmlog_on(fake):
 async def test_debuglog_off(fake):
     await call("i3_wm", action="debuglog", toggle="off")
     assert fake.last_command == "debuglog off"
+
+
+async def test_debuglog_toggle(fake):
+    await call("i3_wm", action="debuglog", toggle="toggle")
+    assert fake.last_command == "debuglog toggle"
 
 
 async def test_append_layout(fake):

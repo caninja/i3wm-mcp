@@ -64,8 +64,18 @@ async def test_title_window_icon_on(fake):
 
 
 async def test_title_window_icon_with_padding(fake):
-    await call("i3_window", title_window_icon="on", title_window_icon_padding=2)
-    assert fake.last_command == "title_window_icon on padding 2 px"
+    await call("i3_window", title_window_icon="on", title_window_icon_padding=3)
+    assert fake.last_command == "title_window_icon on, title_window_icon padding 3px"
+
+
+async def test_title_window_icon_padding_alone(fake):
+    await call("i3_window", title_window_icon_padding=3)
+    assert fake.last_command == "title_window_icon padding 3px"
+
+
+async def test_title_window_icon_toggle(fake):
+    await call("i3_window", title_window_icon="toggle")
+    assert fake.last_command == "title_window_icon toggle"
 
 
 async def test_multiple_properties_chain_with_commas(fake):

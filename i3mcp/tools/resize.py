@@ -8,7 +8,7 @@ from pydantic import Field
 
 from .. import render
 from ..criteria import WindowCriteria, prefix_command
-from ..enums import Direction, Unit
+from ..enums import Unit
 from ..server import mcp
 
 
@@ -29,8 +29,8 @@ async def i3_resize(
     criteria: WindowCriteria | None = Field(
         default=None, description="Which window to resize. Omit for the focused one."
     ),
-    direction: Direction | None = Field(
-        default=None, description="Required for grow and shrink: which edge moves."
+    direction: Literal["width", "height", "left", "right", "up", "down"] | None = Field(
+        default=None, description="Required for grow and shrink: which edge or dimension changes."
     ),
     amount: int = Field(default=10, description="How much to grow or shrink.", ge=1),
     width: int | None = Field(default=None, description="For mode=set: target width."),
@@ -63,8 +63,8 @@ async def i3_resize(
             # one of these tokens: 'px', 'or', <end>"). resize set has no such
             # restriction. Re-using amount for both satisfies the grammar and
             # gives the intended ppt behaviour on a tiling container.
-            command = f"resize {mode} {direction.value} {amount} px or {amount} ppt"
+            command = f"resize {mode} {direction} {amount} px or {amount} ppt"
         else:
-            command = f"resize {mode} {direction.value} {amount} {unit.value}"
+            command = f"resize {mode} {direction} {amount} {unit.value}"
 
     return render.run(prefix_command(criteria, command))

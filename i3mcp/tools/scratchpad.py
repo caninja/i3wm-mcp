@@ -33,7 +33,8 @@ async def i3_scratchpad(
         "Use the same name for both.",
     ),
     criteria: WindowCriteria | None = Field(
-        default=None, description="For move: which window to send. Omit for the focused one."
+        default=None,
+        description="For show and move: which window to act on. Omit for the focused one.",
     ),
 ) -> str:
     """Show, hide, or populate the scratchpad. Named scratchpads are addressed by mark.
@@ -41,9 +42,14 @@ async def i3_scratchpad(
     List what is in the scratchpad with i3_query(what='scratchpad').
     """
     if action == "show":
+        has_criteria = criteria is not None and not criteria.is_empty()
+        if mark is not None and has_criteria:
+            return render.err("Give mark or criteria for show, not both.")
         if mark is not None:
             selector = WindowCriteria(con_mark=mark, match=MatchMode.EXACT).to_selector()
             return render.run(f"{selector} scratchpad show")
+        if has_criteria:
+            return render.run(f"{criteria.to_selector()} scratchpad show")
         return render.run("scratchpad show")
 
     if action == "move":

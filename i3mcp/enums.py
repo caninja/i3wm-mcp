@@ -12,6 +12,14 @@ class Direction(str, Enum):
     DOWN = "down"
 
 
+# Shared by move.py and workspace.py: names i3 treats as bare keywords rather
+# than quoted workspace names. move.py also accepts "current", which is only
+# valid for "move container to workspace current", not "workspace current".
+WORKSPACE_KEYWORDS = frozenset(
+    {"next", "prev", "next_on_output", "prev_on_output", "back_and_forth"}
+)
+
+
 class MatchMode(str, Enum):
     EXACT = "exact"
     SUBSTRING = "substring"

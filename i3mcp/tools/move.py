@@ -6,10 +6,10 @@ from pydantic import Field
 
 from .. import render
 from ..criteria import WindowCriteria, escape_value, prefix_command
-from ..enums import Direction, Unit
+from ..enums import Direction, Unit, WORKSPACE_KEYWORDS
 from ..server import mcp
 
-_RELATIVE_WORKSPACES = {"next", "prev", "current", "next_on_output", "prev_on_output"}
+_RELATIVE_WORKSPACES = WORKSPACE_KEYWORDS | {"current"}
 
 
 @mcp.tool(
@@ -48,9 +48,14 @@ async def i3_move(
     move_workspace: bool = Field(
         default=False, description="With output: move the whole workspace instead of the container."
     ),
-    position_x: int | None = Field(default=None, description="Absolute X for a floating window."),
-    position_y: int | None = Field(default=None, description="Absolute Y for a floating window."),
+    position_x: int | None = Field(default=None, description="X for a floating window."),
+    position_y: int | None = Field(default=None, description="Y for a floating window."),
     center: bool = Field(default=False, description="Centre a floating window on its output."),
+    absolute: bool = Field(
+        default=False,
+        description="With center or position: use coordinates spanning every output "
+        "instead of the current one.",
+    ),
     to_mouse: bool = Field(default=False, description="Move a floating window to the pointer."),
     to_mark: str | None = Field(default=None, description="Move onto the container with this mark."),
     to_scratchpad: bool = Field(default=False, description="Move the container to the scratchpad."),
@@ -103,11 +108,10 @@ async def i3_move(
     elif has_position:
         if position_x is None or position_y is None:
             return render.err("Give both position_x and position_y, or neither.")
-        command = (
-            f"move absolute position {position_x} {unit.value} {position_y} {unit.value}"
-        )
+        prefix = "move absolute position" if absolute else "move position"
+        command = f"{prefix} {position_x} {unit.value} {position_y} {unit.value}"
     elif center:
-        command = "move absolute position center"
+        command = "move absolute position center" if absolute else "move position center"
     elif to_mouse:
         command = "move position mouse"
     elif to_mark is not None:

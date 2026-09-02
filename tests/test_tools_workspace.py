@@ -19,6 +19,11 @@ async def test_switch_no_auto_back_and_forth(fake):
     assert fake.last_command == 'workspace --no-auto-back-and-forth "web"'
 
 
+async def test_switch_navigation_keyword_unquoted(fake):
+    await call("i3_workspace", action="switch", name="next")
+    assert fake.last_command == "workspace next"
+
+
 async def test_navigate_next(fake):
     await call("i3_workspace", action="navigate", direction="next")
     assert fake.last_command == "workspace next"

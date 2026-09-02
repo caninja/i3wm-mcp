@@ -15,6 +15,21 @@ async def test_show_by_mark_matches_what_move_stores(fake):
     assert fake.last_command == r'[con_mark="^\Qterm\E$"] scratchpad show'
 
 
+async def test_show_by_criteria(fake):
+    await call("i3_scratchpad", action="show", criteria={"window_class": "term"})
+    assert fake.last_command == r'[class="^\Qterm\E$"] scratchpad show'
+
+
+async def test_show_rejects_mark_and_criteria_together(fake):
+    result = json.loads(
+        await call(
+            "i3_scratchpad", action="show", mark="term", criteria={"window_class": "term"}
+        )
+    )
+    assert result["success"] is False
+    assert fake.commands == []
+
+
 async def test_move_marks_then_moves(fake):
     await call("i3_scratchpad", action="move", mark="term")
     assert fake.last_command == 'mark --replace "term", move scratchpad'

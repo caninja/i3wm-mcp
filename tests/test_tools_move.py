@@ -33,6 +33,11 @@ async def test_move_to_relative_workspace(fake):
     assert fake.last_command == "move container to workspace next"
 
 
+async def test_move_to_back_and_forth_workspace(fake):
+    await call("i3_move", workspace="back_and_forth")
+    assert fake.last_command == "move container to workspace back_and_forth"
+
+
 async def test_move_and_follow_emits_two_commands(fake):
     await call("i3_move", workspace="web", follow=True)
     assert fake.last_command == 'move container to workspace "web"; workspace "web"'
@@ -48,13 +53,23 @@ async def test_move_workspace_to_output(fake):
     assert fake.last_command == "move workspace to output HDMI-1"
 
 
-async def test_move_absolute_position(fake):
+async def test_move_position(fake):
     await call("i3_move", position_x=100, position_y=200)
+    assert fake.last_command == "move position 100 px 200 px"
+
+
+async def test_move_absolute_position(fake):
+    await call("i3_move", position_x=100, position_y=200, absolute=True)
     assert fake.last_command == "move absolute position 100 px 200 px"
 
 
 async def test_move_center(fake):
     await call("i3_move", center=True)
+    assert fake.last_command == "move position center"
+
+
+async def test_move_center_absolute(fake):
+    await call("i3_move", center=True, absolute=True)
     assert fake.last_command == "move absolute position center"
 
 
