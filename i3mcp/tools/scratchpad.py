@@ -78,8 +78,14 @@ async def i3_scratchpad(
         try:
             ipc.get_connection().command(f"[con_id={record['con_id']}] move scratchpad")
         except I3Error as exc:
-            failed.append({"con_id": record["con_id"], "name": record["name"], "error": str(exc)})
+            failed.append({"con_id": record["con_id"], "name": record.get("name"), "error": str(exc)})
             continue
-        hidden.append({"con_id": record["con_id"], "name": record["name"], "class": record["window_class"]})
+        hidden.append(
+            {
+                "con_id": record["con_id"],
+                "name": record.get("name"),
+                "class": record.get("window_class"),
+            }
+        )
 
     return render.ok(hidden_count=len(hidden), hidden=hidden, failed=failed)

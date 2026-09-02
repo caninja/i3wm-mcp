@@ -8,7 +8,6 @@ from typing import Literal
 from pydantic import Field
 
 from .. import ipc, render, tree
-from ..enums import ResponseFormat
 from ..ipc import I3Error
 from ..server import mcp
 
@@ -54,7 +53,9 @@ async def i3_query(
     ),
     instance: str | None = Field(default=None, description="tree/scratchpad: substring of the instance."),
     window_type: str | None = Field(default=None, description="tree: exact window type, e.g. 'dialog'."),
-    workspace: str | None = Field(default=None, description="tree: exact workspace name."),
+    workspace: str | None = Field(
+        default=None, description="tree: workspace name, or its bare number."
+    ),
     mark: str | None = Field(default=None, description="tree: exact mark on the container."),
     floating: bool | None = Field(default=None, description="tree: restrict to floating or tiling windows."),
     urgent: bool | None = Field(default=None, description="tree: restrict to urgent windows."),
@@ -65,14 +66,12 @@ async def i3_query(
     include_config_body: bool = Field(
         default=False, description="config: include the full config text, which can be large."
     ),
-    response_format: ResponseFormat = Field(
-        default=ResponseFormat.JSON, description="json (default) or markdown."
-    ),
 ) -> str:
     """Read i3 state: the window tree, workspaces, outputs, marks, config, bars, or binding modes.
 
     Window records carry con_id, workspace and output, which is what the other
-    tools' `criteria` argument expects.
+    tools' `criteria` argument expects. Absent booleans mean false; `rect` is
+    `[x, y, width, height]`; `workspace` accepts a name or a bare number.
     """
     conn = ipc.get_connection()
     try:
@@ -80,8 +79,6 @@ async def i3_query(
             records = tree.walk_windows(conn.query(ipc.GET_TREE))
             if what == "focused":
                 found = tree.find_focused(records)
-                if response_format == ResponseFormat.MARKDOWN:
-                    return render.markdown(render.window_lines([found] if found else []))
                 return render.ok(window=found)
             filtered = tree.filter_windows(
                 records,
@@ -96,9 +93,6 @@ async def i3_query(
                 scratchpad=True if what == "scratchpad" else None,
                 include_docks=include_docks,
             )
-            if response_format == ResponseFormat.MARKDOWN:
-                header = f"### Windows ({len(filtered)} found)\n\n"
-                return render.markdown(header + render.window_lines(filtered))
             return render.json_list("windows", filtered)
 
         if what == "config":

@@ -161,7 +161,7 @@ def test_records_carry_workspace_and_output_context():
 def test_floating_read_from_floating_field_not_node_type():
     records = {r["con_id"]: r for r in tree.walk_windows(sample_tree())}
     assert records[4]["floating"] is True
-    assert records[2]["floating"] is False
+    assert "floating" not in records[2]  # compact: False is omitted
 
 
 def test_docks_excluded_by_default():
@@ -183,6 +183,14 @@ def test_workspace_filter_rejects_unknown_workspace():
     assert tree.filter_windows(tree.walk_windows(sample_tree()), workspace="999") == []
 
 
+def test_workspace_filter_matches_workspace_num_by_digits():
+    t = sample_tree()
+    workspace = t["nodes"][0]["nodes"][1]["nodes"][0]
+    workspace["name"] = "3: web"
+    records = tree.filter_windows(tree.walk_windows(t), workspace="3")
+    assert {r["con_id"] for r in records} == {2, 4}
+
+
 def test_floating_filter_matches_floating_windows():
     records = tree.filter_windows(tree.walk_windows(sample_tree()), floating=True)
     assert {r["con_id"] for r in records} == {4, 6}
@@ -201,3 +209,53 @@ def test_scratchpad_filter_selects_scratchpad_workspace():
 def test_find_focused():
     focused = tree.find_focused(tree.walk_windows(sample_tree()))
     assert focused["con_id"] == 2
+
+
+def test_parent_layout_reflects_enclosing_container_or_floating():
+    records = {r["con_id"]: r for r in tree.walk_windows(sample_tree())}
+    assert records[2]["parent_layout"] == "splith"  # tiled directly under the workspace
+    assert records[4]["parent_layout"] == "floating"  # under floating_nodes
+    assert records[6]["parent_layout"] == "floating"  # scratchpad window, also floating
+
+
+def test_tiled_focused_record_is_compact():
+    records = {r["con_id"]: r for r in tree.walk_windows(sample_tree())}
+    focused = records[2]
+    assert focused["parent_layout"] == "splith"
+    assert "layout" not in focused
+    assert "floating" not in focused
+    assert "urgent" not in focused
+
+
+def test_workspace_num_included_only_when_non_negative():
+    records = {r["con_id"]: r for r in tree.walk_windows(sample_tree())}
+    assert records[2]["workspace_num"] == 3
+    assert "workspace_num" not in records[6]  # scratchpad workspace num is -1
+
+
+def test_sticky_true_adds_sticky_key():
+    t = sample_tree()
+    workspace = t["nodes"][0]["nodes"][1]["nodes"][0]
+    workspace["nodes"][0]["sticky"] = True
+    records = {r["con_id"]: r for r in tree.walk_windows(t)}
+    assert records[2]["sticky"] is True
+
+
+def test_sticky_absent_when_false():
+    records = {r["con_id"]: r for r in tree.walk_windows(sample_tree())}
+    assert "sticky" not in records[2]
+
+
+def test_rect_is_a_four_element_list():
+    records = {r["con_id"]: r for r in tree.walk_windows(sample_tree())}
+    assert records[2]["rect"] == [0, 0, 800, 600]
+
+
+def test_parent_layout_is_floating_even_when_floating_con_carries_its_own_layout():
+    # i3 4.25.1 puts a real "layout": "splith" on the floating_con wrapper itself
+    # (verified live); that value must not leak out as the window's parent_layout.
+    t = sample_tree()
+    workspace = t["nodes"][0]["nodes"][1]["nodes"][0]
+    workspace["floating_nodes"][0]["layout"] = "splith"
+    records = {r["con_id"]: r for r in tree.walk_windows(t)}
+    assert records[4]["parent_layout"] == "floating"

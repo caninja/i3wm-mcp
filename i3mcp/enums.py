@@ -3,13 +3,11 @@
 The value sets are `Literal` aliases rather than `Enum` classes: pydantic inlines
 a Literal as a plain `enum` list, where an Enum class becomes a `$defs` entry plus
 a `$ref` in every schema that mentions it. The values are the strings i3 itself
-accepts, so they need no `.value` unwrapping at the call site. `ResponseFormat` is
-the one holdout, and goes away with `i3_query(response_format=...)`.
+accepts, so they need no `.value` unwrapping at the call site.
 """
 
 from __future__ import annotations
 
-from enum import Enum
 from typing import Literal
 
 Direction = Literal["left", "right", "up", "down"]
@@ -39,8 +37,3 @@ Unit = Literal["px", "ppt"]
 WORKSPACE_KEYWORDS = frozenset(
     {"next", "prev", "next_on_output", "prev_on_output", "back_and_forth"}
 )
-
-
-class ResponseFormat(str, Enum):
-    JSON = "json"
-    MARKDOWN = "markdown"

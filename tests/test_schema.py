@@ -128,8 +128,7 @@ async def test_published_schemas_have_no_nullable_anyof(published_schemas):
 
 
 async def test_only_window_criteria_is_left_as_a_def(published_schemas):
-    # ResponseFormat is the last Enum class; Task 4 deletes it with response_format.
-    allowed = {"WindowCriteria", "ResponseFormat"}
+    allowed = {"WindowCriteria"}
     for name, schema in published_schemas.items():
         assert set(schema.get("$defs", {})) <= allowed, name
 

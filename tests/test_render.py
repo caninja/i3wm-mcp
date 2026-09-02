@@ -24,6 +24,12 @@ def test_run_sends_command_and_reports_success(fake):
     assert result["success"] is True
 
 
+def test_run_success_payload_has_no_replies_list(fake):
+    result = json.loads(render.run("nop hello"))
+    assert "replies" not in result
+    assert result["command"] == "nop hello"
+
+
 def test_run_surfaces_i3_error_text(fake):
     fake.command_replies = [[{"success": False, "error": "Expected 'current', 'all'"}]]
     result = json.loads(render.run("gaps inner workspace set 10"))
@@ -45,9 +51,3 @@ def test_json_list_untruncated_has_no_truncation_keys():
     parsed = json.loads(render.json_list("windows", [{"a": 1}]))
     assert "truncated" not in parsed
     assert parsed["count"] == 1
-
-
-def test_markdown_truncation_appends_notice():
-    out = render.markdown("y" * 100, limit=50)
-    assert len(out) > 50
-    assert "truncated" in out.lower()

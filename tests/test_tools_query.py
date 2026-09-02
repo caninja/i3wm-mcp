@@ -16,7 +16,9 @@ async def test_query_tree_returns_records_with_context(fake):
     assert con_ids == {2, 4, 6}  # dock excluded
     firefox = next(w for w in result["windows"] if w["con_id"] == 2)
     assert firefox["workspace"] == "3"
-    assert firefox["floating"] is False
+    assert firefox["parent_layout"] == "splith"
+    assert "floating" not in firefox
+    assert "layout" not in firefox
 
 
 @pytest.mark.asyncio
@@ -81,8 +83,10 @@ async def test_query_bar_config_by_id(fake):
 
 
 @pytest.mark.asyncio
-async def test_query_markdown_format(fake):
-    fake.query_replies[ipc.GET_TREE] = sample_tree()
-    out = await call("i3_query", what="tree", response_format="markdown")
-    assert "Firefox" in out
-    assert "con_id" in out
+async def test_query_tree_workspace_num_filter_matches_digits(fake):
+    t = sample_tree()
+    workspace = t["nodes"][0]["nodes"][1]["nodes"][0]
+    workspace["name"] = "3: web"
+    fake.query_replies[ipc.GET_TREE] = t
+    result = json.loads(await call("i3_query", what="tree", workspace="3"))
+    assert {w["con_id"] for w in result["windows"]} == {2, 4}
