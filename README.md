@@ -12,6 +12,28 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server provid
 ### Vibecode alert
 > Mostly vibed with claude
 
+
+## Overview
+
+The i3wm MCP Server bridges AI assistants with i3's powerful tiling window manager, enabling:
+
+- **Natural language control**: "Move this window to workspace 2" → executed instantly
+- **Complex automation**: Chain multiple window operations in a single request
+- **Context awareness**: Query window states, binding modes, and configurations
+
+**Example interactions:**
+```
+User: "Set 10px gaps between windows and make them look nice"
+Claude: *Sets inner gaps to 10px, outer gaps to 5px*
+
+User: "Move my Firefox to the right monitor and make it fullscreen"
+Claude: *Identifies Firefox window, moves to specified output, enables fullscreen*
+
+User: "What version of i3 am I running?"
+Claude: *Returns: i3 version 4.23 (2023-10-29)*
+```
+
+
 ## Install
 
 Requires [`uv`](https://docs.astral.sh/uv/). No pipx, no manual venv.
@@ -34,6 +56,8 @@ Or edit `~/.claude.json` directly:
   }
 }
 ```
+
+
 
 ## Requirements
 
@@ -82,6 +106,12 @@ uv run python scripts/smoke.py                        # live, drives real i3
 
 The smoke test opens and closes a real window on a scratch workspace and
 restores your previously focused workspace. Run it deliberately.
+
+Try:
+- "What workspaces do I have?"
+- "Set inner gaps to 10 pixels"
+- "Focus my Firefox window"
+
 
 ## Gotchas
 
