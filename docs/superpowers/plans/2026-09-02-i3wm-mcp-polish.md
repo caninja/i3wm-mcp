@@ -266,3 +266,22 @@ Tests: `action="show", criteria={"window_class": "term"}` → `[class="^\Qterm\E
 **Acceptance:** smoke passes on live i3; README matches the shipped surface.
 
 **Commit:** `docs: README and smoke coverage for the polish round`
+
+---
+
+### Task 9: Trim tool argument descriptions
+
+**Files:** every `i3mcp/tools/*.py`, `tests/test_schema.py`.
+
+**Why:** After Task 3 the schema measures ~29,000 chars. `WindowCriteria` is spelled out once per criteria-taking tool by the protocol itself (about 1,400 chars × 8) and is already trimmed; the remaining slack is the 13 tools' flat argument descriptions (~5,900 chars) plus their docstrings. Each character there is paid by every client on every request.
+
+**Do:**
+
+1. Rewrite each `Field(description=...)` on the 13 tools to one short clause that tells an LLM when to use the field and what value shape it takes. Rules of thumb: no repetition of the field name; no repetition of information already in the `enum`/`Literal` values; no full sentences where a fragment does; the same wording for the same concept across tools (`by_number`, `no_auto_back_and_forth`, `criteria`, `unit`, `bar_id` appear in more than one tool). Keep every fact an LLM needs to choose correctly: e.g. `by_number` must still say it is for workspaces named like `"3: web"`; `unit` must still say ppt is percent of the parent; `wait_seconds` must still say what comes back.
+2. Tighten tool docstrings to at most 3 lines where the extra lines only restate the field descriptions.
+3. Lower `SIZE_CEILING` in `tests/test_schema.py` to **26,000** and make `test_only_window_criteria_is_left_as_a_def` allow exactly one `$defs` name (Task 4 has removed `ResponseFormat` by then).
+4. Run `scripts/schema_size.py` before and after; put both in the report. Target: ≤ 24,000 chars total.
+
+**Acceptance:** full suite green with the 26,000 ceiling; smoke passes; every tool still has a description that says what it does.
+
+**Commit:** `perf: trim tool argument descriptions`
