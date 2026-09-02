@@ -162,3 +162,112 @@ def find_focused(records: list[dict]) -> dict | None:
         if record.get("focused"):
             return record
     return None
+
+
+def _percent(node: dict) -> float | None:
+    percent = node.get("percent")
+    return round(percent, 2) if isinstance(percent, (int, float)) else None
+
+
+def _outline_leaf(node: dict) -> dict:
+    props = node.get("window_properties") or {}
+    return _compact(
+        {
+            "con_id": node.get("id"),
+            "name": node.get("name"),
+            "window_class": props.get("class"),
+            "percent": _percent(node),
+            "focused": bool(node.get("focused")),
+            "marks": node.get("marks") or [],
+        }
+    )
+
+
+def _outline_node(node: dict) -> dict:
+    """Render one node (leaf or container) of a workspace's tree, skipping docks."""
+    if node.get("window"):
+        return _outline_leaf(node)
+    children = [_outline_node(child) for child in node.get("nodes") or [] if not is_dock(child)]
+    record = _compact(
+        {
+            "con_id": node.get("id"),
+            "layout": node.get("layout"),
+            "percent": _percent(node),
+        }
+    )
+    record["nodes"] = children  # always present, even empty; never compacted away
+    return record
+
+
+def _find_workspace_by_name_or_num(tree_root: dict, workspace: str) -> dict | None:
+    def visit(node: dict) -> dict | None:
+        if node.get("type") == "workspace":
+            if node.get("name") == workspace:
+                return node
+            if workspace.isdigit() and node.get("num") == int(workspace):
+                return node
+        for child in node.get("nodes") or []:
+            found = visit(child)
+            if found is not None:
+                return found
+        return None
+
+    return visit(tree_root)
+
+
+def _find_focused_workspace(tree_root: dict) -> dict | None:
+    def visit(node: dict, workspace: dict | None) -> dict | None:
+        if node.get("type") == "workspace":
+            workspace = node
+        if node.get("window") and node.get("focused"):
+            return workspace
+        for child in node.get("nodes") or []:
+            found = visit(child, workspace)
+            if found is not None:
+                return found
+        for child in node.get("floating_nodes") or []:
+            found = visit(child, workspace)
+            if found is not None:
+                return found
+        return None
+
+    return visit(tree_root, None)
+
+
+def outline(tree_root: dict, workspace: str | None) -> dict | None:
+    """Render one workspace's container structure, con_ids and all.
+
+    Returns None when the requested workspace (by name or number) does not
+    exist, or, when `workspace` is None, no window in the whole tree is
+    focused.
+    """
+    if workspace is None:
+        workspace_node = _find_focused_workspace(tree_root)
+    else:
+        workspace_node = _find_workspace_by_name_or_num(tree_root, workspace)
+    if workspace_node is None:
+        return None
+
+    nodes = [_outline_node(child) for child in workspace_node.get("nodes") or [] if not is_dock(child)]
+    floating: list[dict] = []
+    for wrapper in workspace_node.get("floating_nodes") or []:
+        for inner in wrapper.get("nodes") or []:
+            if not is_dock(inner):
+                floating.append(_outline_leaf(inner))
+
+    workspace_num = workspace_node.get("num")
+    if not isinstance(workspace_num, int) or workspace_num < 0:
+        workspace_num = None
+
+    record = _compact(
+        {
+            "con_id": workspace_node.get("id"),
+            "workspace": workspace_node.get("name"),
+            "workspace_num": workspace_num,
+            "layout": workspace_node.get("layout"),
+        }
+    )
+    record["nodes"] = nodes  # always present, even empty; never compacted away
+    if floating:
+        record["floating"] = floating
+    return record

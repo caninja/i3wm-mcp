@@ -259,3 +259,40 @@ def test_parent_layout_is_floating_even_when_floating_con_carries_its_own_layout
     workspace["floating_nodes"][0]["layout"] = "splith"
     records = {r["con_id"]: r for r in tree.walk_windows(t)}
     assert records[4]["parent_layout"] == "floating"
+
+
+def test_outline_by_workspace_name_lists_leaf_and_floating_windows():
+    result = tree.outline(sample_tree(), "3")
+    assert result["workspace"] == "3"
+    assert result["workspace_num"] == 3
+    assert len(result["nodes"]) == 1
+    leaf = result["nodes"][0]
+    assert leaf["con_id"] == 2
+    assert leaf["window_class"] == "firefox"
+    assert leaf["focused"] is True
+    assert "layout" not in leaf  # leaves have no layout of their own
+    assert result["floating"] == [
+        {"con_id": 4, "name": "Downloads - Thunar", "window_class": "Thunar", "marks": ["files"]}
+    ]
+
+
+def test_outline_unknown_workspace_returns_none():
+    assert tree.outline(sample_tree(), "no-such-workspace") is None
+
+
+def test_outline_none_workspace_finds_the_focused_leafs_workspace():
+    result = tree.outline(sample_tree(), None)
+    assert result["workspace"] == "3"
+
+
+def test_outline_none_workspace_returns_none_when_nothing_focused():
+    t = sample_tree()
+    firefox = t["nodes"][0]["nodes"][1]["nodes"][0]["nodes"][0]
+    firefox["focused"] = False
+    assert tree.outline(t, None) is None
+
+
+def test_outline_skips_dock_windows():
+    result = tree.outline(sample_tree(), "3")
+    dumped_ids = {node["con_id"] for node in result["nodes"]} | {node["con_id"] for node in result["floating"]}
+    assert 1 not in dumped_ids  # the i3bar dock window's con_id never appears

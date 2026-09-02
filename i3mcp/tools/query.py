@@ -36,6 +36,7 @@ async def i3_query(
         "tree",
         "focused",
         "scratchpad",
+        "layout",
         "workspaces",
         "outputs",
         "marks",
@@ -54,7 +55,7 @@ async def i3_query(
     instance: str | None = Field(default=None, description="tree/scratchpad: substring of the instance."),
     window_type: str | None = Field(default=None, description="tree: exact window type, e.g. 'dialog'."),
     workspace: str | None = Field(
-        default=None, description="tree: workspace name, or its bare number."
+        default=None, description="tree/layout: workspace name, or its bare number."
     ),
     mark: str | None = Field(default=None, description="tree: exact mark on the container."),
     floating: bool | None = Field(default=None, description="tree: restrict to floating or tiling windows."),
@@ -70,8 +71,9 @@ async def i3_query(
     """Read i3 state: the window tree, workspaces, outputs, marks, config, bars, or binding modes.
 
     Window records carry con_id, workspace and output, which is what the other
-    tools' `criteria` argument expects. Absent booleans mean false; `rect` is
-    `[x, y, width, height]`; `workspace` accepts a name or a bare number.
+    tools' `criteria` argument expects. Absent booleans mean false; `workspace`
+    accepts a name or a bare number.
+    layout: nested containers of one workspace, with con_ids that i3_layout can target.
     """
     conn = ipc.get_connection()
     try:
@@ -94,6 +96,17 @@ async def i3_query(
                 include_docks=include_docks,
             )
             return render.json_list("windows", filtered)
+
+        if what == "layout":
+            result = tree.outline(conn.query(ipc.GET_TREE), workspace)
+            if result is None:
+                if workspace is None:
+                    return render.err("No focused window; pass workspace explicitly.")
+                return render.err(
+                    f"No workspace named or numbered {workspace!r}.",
+                    hint="List them with i3_query(what='workspaces').",
+                )
+            return render.ok(**result)
 
         if what == "config":
             data = conn.query(ipc.GET_CONFIG)
