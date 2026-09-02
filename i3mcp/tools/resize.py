@@ -57,6 +57,15 @@ async def i3_resize(
     else:
         if direction is None:
             return render.err(f"mode={mode} needs a direction.")
-        command = f"resize {mode} {direction.value} {amount} {unit.value}"
+        if unit == Unit.PPT:
+            # i3 4.25.1's grammar for resize grow/shrink requires a px amount;
+            # ppt is only accepted as a fallback "or" clause (verified live:
+            # a bare "resize grow right 1 ppt" is a parse error -- "Expected
+            # one of these tokens: 'px', 'or', <end>"). resize set has no such
+            # restriction. Re-using amount for both satisfies the grammar and
+            # gives the intended ppt behaviour on a tiling container.
+            command = f"resize {mode} {direction.value} {amount} px or {amount} ppt"
+        else:
+            command = f"resize {mode} {direction.value} {amount} {unit.value}"
 
     return render.run(prefix_command(criteria, command))

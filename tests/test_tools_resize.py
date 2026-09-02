@@ -10,8 +10,11 @@ async def test_resize_grow_width_px(fake):
 
 
 async def test_resize_shrink_ppt(fake):
+    # i3 4.25.1 rejects a bare ppt amount for resize grow/shrink -- verified
+    # live: "Expected one of these tokens: 'px', 'or', <end>". ppt is only
+    # valid there as a fallback "or" clause after a px amount.
     await i3_resize(mode="shrink", direction="up", amount=5, unit="ppt")
-    assert fake.last_command == "resize shrink up 5 ppt"
+    assert fake.last_command == "resize shrink up 5 px or 5 ppt"
 
 
 async def test_resize_set_both_dimensions_px(fake):
