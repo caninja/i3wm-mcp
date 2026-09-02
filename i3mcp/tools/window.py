@@ -24,41 +24,36 @@ Toggle = Literal["enable", "disable", "toggle"]
     },
 )
 async def i3_window(
-    criteria: WindowCriteria | None = Field(
-        default=None, description="Which window to change. Omit for the focused one."
-    ),
-    floating: Toggle | None = Field(default=None, description="Float, tile, or toggle the window."),
+    criteria: WindowCriteria | None = Field(default=None),
+    floating: Toggle | None = Field(default=None),
     sticky: Toggle | None = Field(
-        default=None, description="Keep a floating window visible on every workspace."
+        default=None, description="Floating window stays on every workspace."
     ),
-    fullscreen: Toggle | None = Field(default=None, description="Fullscreen the window."),
+    fullscreen: Toggle | None = Field(default=None),
     fullscreen_global: bool = Field(
-        default=False, description="With fullscreen: span every output, not just the current one."
+        default=False, description="With fullscreen: span every output."
     ),
     border: Literal["normal", "pixel", "none", "toggle"] | None = Field(
-        default=None, description="Border style. 'normal' keeps the title bar, 'pixel' drops it."
+        default=None, description="normal keeps the title bar, pixel drops it."
     ),
     border_width: int | None = Field(
-        default=None, description="Border width in pixels, for normal and pixel only.", ge=0, le=50
+        default=None, description="Pixels; normal and pixel borders only.", ge=0, le=50
     ),
     title_format: str | None = Field(
         default=None,
-        description="Title bar template, e.g. '%title (%class)'. Placeholders: %title, %class, %instance, %machine, %shell.",
+        description="Template, e.g. '%title (%class)'; also %instance, %machine, %shell.",
     ),
     title_window_icon: Literal["on", "off", "toggle"] | None = Field(
-        default=None, description="Show the application icon in the title bar."
+        default=None, description="Application icon in the title bar."
     ),
     title_window_icon_padding: int | None = Field(
         default=None,
-        description="Padding in pixels around the title bar icon. Valid on its own, "
-        "without title_window_icon.",
+        description="Pixels around the icon; valid on its own.",
         ge=0,
     ),
 ) -> str:
-    """Set floating, sticky, fullscreen, border, or title properties on a window.
-
-    Several properties in one call are applied as a single chained i3 command.
-    """
+    """Set floating, sticky, fullscreen, border or title properties; several in
+    one call run as a single chained i3 command."""
     parts: list[str] = []
     if floating is not None:
         parts.append(f"floating {floating}")

@@ -53,37 +53,35 @@ def _launch_and_wait(cmd: str, wait_seconds: float) -> tuple[dict | None, float]
 async def i3_wm(
     action: Literal[
         "exec", "reload", "restart", "mode", "nop", "shmlog", "debuglog", "append_layout"
-    ] = Field(description="Which window-manager operation to run."),
+    ] = Field(),
     command: str | None = Field(
-        default=None, description="For action=exec: the shell command to launch.", max_length=500
+        default=None, description="exec: the shell command to launch.", max_length=500
     ),
     workspace: str | None = Field(
-        default=None, description="For action=exec: switch to this workspace before launching."
+        default=None,
+        description="exec: switch here first; new windows land on the focused workspace.",
     ),
     mode_name: str | None = Field(
-        default=None, description="For action=mode: the binding mode to enter, e.g. 'resize'."
+        default=None, description="mode: which mode to enter, e.g. 'resize'."
     ),
-    comment: str | None = Field(default=None, description="For action=nop: a comment to log."),
+    comment: str | None = Field(default=None, description="nop: text to log."),
     toggle: Literal["on", "off", "toggle"] | None = Field(
         default=None, description="For shmlog and debuglog."
     ),
     path: str | None = Field(
-        default=None, description="For action=append_layout: path to a saved layout JSON file."
+        default=None, description="append_layout: a saved layout JSON file."
     ),
     wait_seconds: float | None = Field(
         default=None,
         ge=0.1,
         le=60,
         description=(
-            "For action=exec: wait up to this long for a new window and return it "
-            "(con_id, class, name)."
+            "exec: wait up to this long for a new window; returns it "
+            "(con_id, class, name) or timed_out=true."
         ),
     ),
 ) -> str:
-    """Launch an application, reload or restart i3, switch binding mode, or control logging.
-
-    New windows land on the focused workspace, so exec switches there first when asked.
-    """
+    """Launch an app, reload or restart i3, switch binding mode, or control logging."""
     if action == "exec":
         if not command:
             return render.err("action=exec needs a command.")

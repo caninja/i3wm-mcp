@@ -22,23 +22,19 @@ from ..server import mcp
     },
 )
 async def i3_mark(
-    criteria: WindowCriteria | None = Field(
-        default=None, description="Which window to mark. Omit for the focused one."
-    ),
+    criteria: WindowCriteria | None = Field(default=None),
     mark: str | None = Field(
-        default=None, description="Mark to set. Marks are the stable way to address a window later."
+        default=None, description="Mark to set."
     ),
     mode: Literal["replace", "add", "toggle"] = Field(
         default="replace",
-        description="replace clears other marks, add keeps them, toggle flips this one.",
+        description="replace clears other marks, add keeps them.",
     ),
     unmark: str | None = Field(default=None, description="Mark to remove."),
-    unmark_all: bool = Field(default=False, description="Remove every mark from the target."),
+    unmark_all: bool = Field(default=False, description="Remove every mark."),
 ) -> str:
-    """Set or remove a mark on a window. Marks survive moves and are the best criteria handle.
-
-    Give one of: mark, unmark, or unmark_all.
-    """
+    """Set or remove a mark; marks survive moves and are the best criteria
+    handle. Give one of mark, unmark, unmark_all."""
     chosen = [
         name
         for name, present in (("mark", mark is not None), ("unmark", unmark is not None), ("unmark_all", unmark_all))

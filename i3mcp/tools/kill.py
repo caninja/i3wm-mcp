@@ -20,13 +20,8 @@ from ..server import mcp
     },
 )
 async def i3_kill(
-    criteria: WindowCriteria | None = Field(
-        default=None,
-        description="Which window to close. Omit to close the focused one.",
-    ),
+    criteria: WindowCriteria | None = Field(default=None),
 ) -> str:
-    """Close a window. The application may prompt to save first.
-
-    Destructive: confirm the target before calling without criteria.
-    """
+    """Close a window (the focused one without criteria); the app may prompt to
+    save. Destructive: confirm the target first."""
     return render.run_targeted(criteria, "kill")

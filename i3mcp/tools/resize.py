@@ -23,27 +23,20 @@ from ..server import mcp
     },
 )
 async def i3_resize(
-    mode: Literal["grow", "shrink", "set"] = Field(
-        description="grow or shrink by an amount, or set an absolute size."
-    ),
-    criteria: WindowCriteria | None = Field(
-        default=None, description="Which window to resize. Omit for the focused one."
-    ),
+    mode: Literal["grow", "shrink", "set"] = Field(),
+    criteria: WindowCriteria | None = Field(default=None),
     direction: Literal["width", "height", "left", "right", "up", "down"] | None = Field(
-        default=None, description="Required for grow and shrink: which edge or dimension changes."
+        default=None, description="Required for grow/shrink: edge or dimension."
     ),
-    amount: int = Field(default=10, description="How much to grow or shrink.", ge=1),
-    width: int | None = Field(default=None, description="For mode=set: target width."),
-    height: int | None = Field(default=None, description="For mode=set: target height."),
+    amount: int = Field(default=10, description="Grow/shrink step.", ge=1),
+    width: int | None = Field(default=None, description="mode=set: target width."),
+    height: int | None = Field(default=None, description="mode=set: target height."),
     unit: Unit = Field(
         default="px",
-        description="px for pixels, ppt for percent of the parent container.",
+        description="ppt is percent of the parent container.",
     ),
 ) -> str:
-    """Grow, shrink, or set the size of a container.
-
-    ppt works on tiled containers; px suits floating ones.
-    """
+    """Grow, shrink, or set a container's size. ppt suits tiling, px floating."""
     if mode == "set":
         if width is None and height is None:
             return render.err("mode=set needs width, height, or both.")

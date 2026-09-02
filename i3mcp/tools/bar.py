@@ -23,19 +23,16 @@ from ..server import mcp
 async def i3_bar(
     mode: Literal["dock", "hide", "invisible"] | None = Field(
         default=None,
-        description="dock is always visible, hide shows on the modifier key, invisible never shows.",
+        description="dock: always visible; hide: on the modifier key; invisible: never.",
     ),
     hidden_state: Literal["hide", "show"] | None = Field(
-        default=None, description="With mode=hide, whether the bar is currently shown."
+        default=None, description="With mode=hide: show or hide it now."
     ),
     bar_id: str | None = Field(
-        default=None, description="Which bar. Omit to affect every bar. List ids with i3_query."
+        default=None, description="Omit for every bar; ids from i3_query."
     ),
 ) -> str:
-    """Set i3bar's display mode or its current hidden state.
-
-    Give mode, hidden_state, or both.
-    """
+    """Set i3bar's display mode or hidden state. Give mode, hidden_state, or both."""
     parts = []
     if mode is not None:
         parts.append(f"bar mode {mode}" + (f" {bar_id}" if bar_id else ""))

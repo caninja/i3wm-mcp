@@ -10,9 +10,10 @@ from i3mcp.schema import compact
 from i3mcp.server import mcp
 
 # A ceiling with headroom, not a target. Measured: 43,609 chars before compaction,
-# 28,956 after. The floor is WindowCriteria, whose $defs entry is still spelled out
-# in each of the 8 tools that take criteria (~1.4k x 8 = ~11.3k of the remainder).
-SIZE_CEILING = 30_000
+# 29,154 after it, and 23,889 once the argument descriptions were trimmed. The floor
+# is WindowCriteria, whose $defs entry is still spelled out in each of the 8 tools
+# that take criteria (~1.1k x 8 = ~8.9k of what is left).
+SIZE_CEILING = 26_000
 
 # Keys whose values map a name to a schema, so their keys are names, not keywords.
 NAME_MAPS = ("properties", "$defs")

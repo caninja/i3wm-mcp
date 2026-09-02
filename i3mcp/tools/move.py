@@ -23,50 +23,42 @@ _RELATIVE_WORKSPACES = WORKSPACE_KEYWORDS | {"current"}
     },
 )
 async def i3_move(
-    criteria: WindowCriteria | None = Field(
-        default=None, description="Which window to move. Omit to move the focused one."
+    criteria: WindowCriteria | None = Field(default=None),
+    direction: Direction | None = Field(default=None, description="Step this way."),
+    amount: int | None = Field(default=None, description="With direction: how far.", ge=1),
+    unit: Unit = Field(
+        default="px",
+        description="For amount and position; ppt is percent of the output.",
     ),
-    direction: Direction | None = Field(default=None, description="Move one step in this direction."),
-    amount: int | None = Field(default=None, description="With direction: how far to move.", ge=1),
-    unit: Unit = Field(default="px", description="Unit for amount and position: px or ppt."),
     workspace: str | None = Field(
-        default=None,
-        description="Target workspace name, or next/prev/current for a relative move.",
+        default=None, description="Target name, or next/prev/current."
     ),
     by_number: bool = Field(
-        default=False,
-        description="Treat workspace as a number. Use this with named workspaces like '3: web', "
-        "where plain 'workspace 3' would create a new one instead of switching.",
+        default=False, description="For workspaces named like '3: web': match by leading number."
     ),
-    follow: bool = Field(default=False, description="Switch to the workspace after moving."),
+    follow: bool = Field(default=False, description="Switch to it after moving."),
     no_auto_back_and_forth: bool = Field(
-        default=False, description="Suppress i3's automatic back_and_forth behaviour."
+        default=False, description="Suppress i3's automatic back_and_forth."
     ),
-    output: str | None = Field(
-        default=None, description="Target output name or relative position."
-    ),
+    output: str | None = Field(default=None, description="Target output name or position."),
     move_workspace: bool = Field(
-        default=False, description="With output: move the whole workspace instead of the container."
+        default=False, description="With output: move the whole workspace."
     ),
-    position_x: int | None = Field(default=None, description="X for a floating window."),
-    position_y: int | None = Field(default=None, description="Y for a floating window."),
-    center: bool = Field(default=False, description="Centre a floating window on its output."),
+    position_x: int | None = Field(default=None, description="Floating window; give position_y too."),
+    position_y: int | None = Field(default=None),
+    center: bool = Field(default=False, description="Centre a floating window."),
     absolute: bool = Field(
-        default=False,
-        description="With center or position: use coordinates spanning every output "
-        "instead of the current one.",
+        default=False, description="With center/position: coordinates span all outputs."
     ),
-    to_mouse: bool = Field(default=False, description="Move a floating window to the pointer."),
-    to_mark: str | None = Field(default=None, description="Move onto the container with this mark."),
-    to_scratchpad: bool = Field(default=False, description="Move the container to the scratchpad."),
-    swap_with_mark: str | None = Field(default=None, description="Swap with the container holding this mark."),
-    swap_with_con_id: int | None = Field(default=None, description="Swap with this container id."),
-    swap_with_window_id: int | None = Field(default=None, description="Swap with this X11 window id."),
+    to_mouse: bool = Field(default=False, description="To the mouse pointer (floating)."),
+    to_mark: str | None = Field(default=None, description="Onto the container with this mark."),
+    to_scratchpad: bool = Field(default=False),
+    swap_with_mark: str | None = Field(default=None),
+    swap_with_con_id: int | None = Field(default=None),
+    swap_with_window_id: int | None = Field(default=None),
 ) -> str:
-    """Move a container to a workspace, output, position, mark, or the scratchpad; or swap two containers.
-
-    Pick exactly one destination. Without `criteria` the focused container moves.
-    """
+    """Move a container to a workspace, output, position, mark or the scratchpad,
+    or swap it with another. Give exactly one destination."""
     has_position = position_x is not None or position_y is not None
     destinations = {
         "direction": direction is not None,

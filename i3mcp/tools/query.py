@@ -45,35 +45,31 @@ async def i3_query(
         "bar_config",
         "binding_modes",
         "binding_state",
-    ] = Field(default="tree", description="Which piece of i3 state to read."),
+    ] = Field(default="tree"),
     window_class: str | None = Field(
-        default=None, description="tree/scratchpad: case-insensitive substring of the window class."
+        default=None, description="tree/scratchpad: case-insensitive substring."
     ),
     title: str | None = Field(
-        default=None, description="tree/scratchpad: case-insensitive substring of the window title."
+        default=None, description="tree/scratchpad: case-insensitive substring."
     ),
-    instance: str | None = Field(default=None, description="tree/scratchpad: substring of the instance."),
-    window_type: str | None = Field(default=None, description="tree: exact window type, e.g. 'dialog'."),
-    workspace: str | None = Field(
-        default=None, description="tree/layout: workspace name, or its bare number."
+    instance: str | None = Field(
+        default=None, description="tree/scratchpad: case-insensitive substring."
     ),
-    mark: str | None = Field(default=None, description="tree: exact mark on the container."),
-    floating: bool | None = Field(default=None, description="tree: restrict to floating or tiling windows."),
-    urgent: bool | None = Field(default=None, description="tree: restrict to urgent windows."),
-    include_docks: bool = Field(default=False, description="tree: include i3bar and other dock windows."),
-    bar_id: str | None = Field(
-        default=None, description="bar_config: which bar. Omit to list bar ids."
-    ),
+    window_type: str | None = Field(default=None, description="tree: exact, e.g. 'dialog'."),
+    workspace: str | None = Field(default=None, description="tree/layout: name or bare number."),
+    mark: str | None = Field(default=None, description="tree: exact mark."),
+    floating: bool | None = Field(default=None, description="tree: floating only, or tiling only."),
+    urgent: bool | None = Field(default=None, description="tree: urgent only."),
+    include_docks: bool = Field(default=False, description="tree: include i3bar and docks."),
+    bar_id: str | None = Field(default=None, description="bar_config: omit to list bar ids."),
     include_config_body: bool = Field(
-        default=False, description="config: include the full config text, which can be large."
+        default=False, description="config: include the full text (large)."
     ),
 ) -> str:
-    """Read i3 state: the window tree, workspaces, outputs, marks, config, bars, or binding modes.
-
-    Window records carry con_id, workspace and output, which the other tools'
-    `criteria` argument expects. Absent booleans mean false; `rect` is `[x, y, width, height]`; `workspace` accepts a name or a bare number.
-    layout: nested containers of one workspace, with con_ids that i3_layout can target.
-    """
+    """Read i3 state: window tree, workspaces, outputs, marks, config, bars, modes.
+    Records carry the con_id, workspace and output other tools' `criteria` wants;
+    absent booleans are false; `rect` is [x, y, width, height]. layout: one
+    workspace's nested containers, with con_ids i3_layout can target."""
     conn = ipc.get_connection()
     try:
         if what in ("tree", "focused", "scratchpad"):

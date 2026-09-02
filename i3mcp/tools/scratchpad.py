@@ -24,22 +24,17 @@ from ..server import mcp
 )
 async def i3_scratchpad(
     action: Literal["show", "move", "hide_all"] = Field(
-        description="show toggles a window in or out; move sends one in; hide_all sends every visible one back."
+        description="show toggles one in or out; move sends one in; hide_all sends all back."
     ),
     mark: str | None = Field(
         default=None,
-        description="Named scratchpad. On move the mark is set; on show it is looked up. "
-        "Use the same name for both.",
+        description="Named scratchpad: set on move, looked up on show; "
+        "use the same name for both.",
     ),
-    criteria: WindowCriteria | None = Field(
-        default=None,
-        description="For show and move: which window to act on. Omit for the focused one.",
-    ),
+    criteria: WindowCriteria | None = Field(default=None, description="show/move only."),
 ) -> str:
-    """Show, hide, or populate the scratchpad. Named scratchpads are addressed by mark.
-
-    List what is in the scratchpad with i3_query(what='scratchpad').
-    """
+    """Show, hide or populate the scratchpad; named ones are addressed by mark.
+    List its contents with i3_query(what='scratchpad')."""
     if action == "show":
         has_criteria = criteria is not None and not criteria.is_empty()
         if mark is not None and has_criteria:

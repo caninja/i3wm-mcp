@@ -50,34 +50,31 @@ def value_matches(pattern: str, value: Any, mode: MatchMode, field: str) -> bool
 
 
 class WindowCriteria(BaseModel):
-    """Which window(s) to act on. Omit every field for the focused window."""
+    """Which window(s); omit every field for the focused one."""
 
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     window_class: str | None = Field(
         default=None, description="WM_CLASS class, e.g. 'firefox'."
     )
-    instance: str | None = Field(default=None, description="WM_CLASS instance.")
-    title: str | None = Field(default=None, description="Window title.")
-    window_role: str | None = Field(default=None, description="WM_WINDOW_ROLE value.")
-    window_type: WindowType | None = Field(default=None, description="Window type.")
-    con_mark: str | None = Field(default=None, description="i3 mark on the container.")
-    workspace: str | None = Field(default=None, description="Containing workspace name.")
+    instance: str | None = Field(
+        default=None, description="WM_CLASS instance, e.g. 'Navigator'."
+    )
+    title: str | None = Field(default=None)
+    window_role: str | None = Field(default=None)
+    window_type: WindowType | None = Field(default=None)
+    con_mark: str | None = Field(default=None)
+    workspace: str | None = Field(default=None, description="Workspace it is on.")
     con_id: int | None = Field(
-        default=None, description="Container id from i3_query; the most precise selector."
+        default=None, description="From i3_query; most precise."
     )
     window_id: int | None = Field(default=None, description="X11 window id.")
-    urgent: Urgency | None = Field(
-        default=None,
-        description="Pick an urgent window: latest, oldest, newest, last, recent or first.",
-    )
+    urgent: Urgency | None = Field(default=None, description="Pick an urgent window.")
     floating: bool | None = Field(
-        default=None, description="true: only floating windows; false: only tiling."
+        default=None, description="true: floating; false: tiling."
     )
     all: bool = Field(default=False, description="Match every window.")
-    match: MatchMode = Field(
-        default="exact", description="How strings match: exact (default), substring, regex."
-    )
+    match: MatchMode = Field(default="exact")
 
     def _string_fields(self) -> tuple[tuple[str, str | None], ...]:
         return (

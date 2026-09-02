@@ -24,35 +24,30 @@ from ..server import mcp
 )
 async def i3_focus(
     direction: Direction | None = Field(
-        default=None, description="Focus the neighbouring window: left, right, up, or down."
+        default=None, description="Focus the neighbouring window."
     ),
     target: Literal["parent", "child", "floating", "tiling", "mode_toggle"] | None = Field(
         default=None,
-        description="Focus the parent or child container, or switch between floating and tiling.",
+        description="parent/child walk the tree; mode_toggle swaps floating and tiling.",
     ),
     sibling: Literal["next", "prev"] | None = Field(
-        default=None, description="Focus the next or previous sibling container."
+        default=None, description="Within the same parent."
     ),
     cycle: Literal["next", "prev"] | None = Field(
-        default=None, description="Focus the next or previous container in the tree."
+        default=None, description="Across the whole tree."
     ),
     output: str | None = Field(
         default=None,
-        description="Focus an output by name (e.g. 'HDMI-1') or relative position "
-        "(left/right/up/down/current/primary/nonprimary/next).",
+        description="Output name, e.g. 'HDMI-1', or left/right/up/down/primary/next.",
     ),
-    criteria: WindowCriteria | None = Field(
-        default=None, description="Focus the window matching these criteria."
-    ),
+    criteria: WindowCriteria | None = Field(default=None),
     focus_workspace: bool = Field(
         default=False,
-        description="With criteria: focus the matching window's workspace rather than the window.",
+        description="With criteria: focus its workspace, not the window.",
     ),
 ) -> str:
-    """Focus a window by direction, container relationship, criteria, or output.
-
-    Exactly one of direction, target, sibling, cycle, output or criteria.
-    """
+    """Focus a window or an output. Give exactly one of direction, target,
+    sibling, cycle, output, criteria."""
     chosen = [
         name
         for name, value in (
