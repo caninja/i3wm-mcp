@@ -61,12 +61,15 @@ def layout_fixture_tree() -> dict:
         "floating_nodes": [],
     }
 
+    # Real shape (i3 4.25.1): the bar window reports window_type "unknown" and
+    # is identified by the enclosing dockarea node.
     dock_window = {
         "type": "con",
         "id": 999,
         "window": 9999,
         "name": "i3bar",
-        "window_type": "dock",
+        "layout": "splith",
+        "window_type": "unknown",
         "window_properties": {"class": "i3bar"},
         "nodes": [],
         "floating_nodes": [],
@@ -83,6 +86,7 @@ def layout_fixture_tree() -> dict:
                     {
                         "type": "dockarea",
                         "name": "topdock",
+                        "layout": "dockarea",
                         "nodes": [dock_window],
                         "floating_nodes": [],
                     },

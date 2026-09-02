@@ -8,19 +8,21 @@ def sample_tree():
         "nodes": [
             {
                 "type": "output",
-                "name": "DisplayPort-1",
+                "name": "OUT-1",
                 "nodes": [
                     {
                         "type": "dockarea",
                         "name": "topdock",
+                        "layout": "dockarea",
                         "nodes": [
                             {
                                 "type": "con",
                                 "id": 1,
                                 "window": 111,
-                                "name": "i3bar for output DisplayPort-1",
+                                "name": "bar for output OUT-1",
                                 "floating": "auto_off",
-                                "window_type": "dock",
+                                "layout": "splith",
+                                "window_type": "unknown",
                                 "window_properties": {"class": "i3bar"},
                                 "nodes": [],
                                 "floating_nodes": [],
@@ -36,7 +38,7 @@ def sample_tree():
                                 "type": "workspace",
                                 "name": "3",
                                 "num": 3,
-                                "output": "DisplayPort-1",
+                                "output": "OUT-1",
                                 "layout": "splith",
                                 "nodes": [
                                     {
@@ -52,6 +54,7 @@ def sample_tree():
                                         "layout": "splith",
                                         "rect": {"x": 0, "y": 0, "width": 800, "height": 600},
                                         "window_type": "normal",
+                                        "scratchpad_state": "none",
                                         "window_properties": {
                                             "class": "firefox",
                                             "instance": "Navigator",
@@ -70,7 +73,7 @@ def sample_tree():
                                                 "type": "con",
                                                 "id": 4,
                                                 "window": 444,
-                                                "name": "Downloads - Thunar",
+                                                "name": "Downloads - Files",
                                                 "floating": "user_on",
                                                 "focused": False,
                                                 "urgent": False,
@@ -79,9 +82,10 @@ def sample_tree():
                                                 "layout": "splith",
                                                 "rect": {"x": 10, "y": 10, "width": 400, "height": 300},
                                                 "window_type": "normal",
+                                                "scratchpad_state": "none",
                                                 "window_properties": {
-                                                    "class": "Thunar",
-                                                    "instance": "thunar",
+                                                    "class": "Files",
+                                                    "instance": "files",
                                                 },
                                                 "nodes": [],
                                                 "floating_nodes": [],
@@ -115,6 +119,7 @@ def sample_tree():
                                     {
                                         "type": "floating_con",
                                         "id": 5,
+                                        "scratchpad_state": "fresh",
                                         "nodes": [
                                             {
                                                 "type": "con",
@@ -124,7 +129,7 @@ def sample_tree():
                                                 "floating": "user_on",
                                                 "focused": False,
                                                 "marks": ["term"],
-                                                "scratchpad_state": "fresh",
+                                                "scratchpad_state": "none",
                                                 "rect": {"x": 0, "y": 0, "width": 10, "height": 10},
                                                 "window_properties": {"class": "Alacritty"},
                                                 "nodes": [],
@@ -154,7 +159,7 @@ def test_walk_finds_every_window_including_docks_and_scratchpad():
 def test_records_carry_workspace_and_output_context():
     records = {r["con_id"]: r for r in tree.walk_windows(sample_tree())}
     assert records[2]["workspace"] == "3"
-    assert records[2]["output"] == "DisplayPort-1"
+    assert records[2]["output"] == "OUT-1"
     assert records[6]["workspace"] == "__i3_scratch"
 
 
@@ -197,7 +202,7 @@ def test_floating_filter_matches_floating_windows():
 
 
 def test_class_filter_is_case_insensitive_substring():
-    records = tree.filter_windows(tree.walk_windows(sample_tree()), window_class="thunar")
+    records = tree.filter_windows(tree.walk_windows(sample_tree()), window_class="files")
     assert {r["con_id"] for r in records} == {4}
 
 
@@ -272,7 +277,7 @@ def test_outline_by_workspace_name_lists_leaf_and_floating_windows():
     assert leaf["focused"] is True
     assert "layout" not in leaf  # leaves have no layout of their own
     assert result["floating"] == [
-        {"con_id": 4, "name": "Downloads - Thunar", "window_class": "Thunar", "marks": ["files"]}
+        {"con_id": 4, "name": "Downloads - Files", "window_class": "Files", "marks": ["files"]}
     ]
 
 
@@ -296,3 +301,40 @@ def test_outline_skips_dock_windows():
     result = tree.outline(sample_tree(), "3")
     dumped_ids = {node["con_id"] for node in result["nodes"]} | {node["con_id"] for node in result["floating"]}
     assert 1 not in dumped_ids  # the i3bar dock window's con_id never appears
+
+
+def test_scratchpad_state_comes_from_the_floating_con_wrapper():
+    # i3 4.25.1 stores scratchpad_state on the enclosing floating_con; the
+    # window con below it always reads "none" (verified live).
+    records = {r["con_id"]: r for r in tree.walk_windows(sample_tree())}
+    assert records[6]["scratchpad_state"] == "fresh"
+
+
+def test_scratchpad_state_is_omitted_when_the_window_is_not_a_scratchpad():
+    records = {r["con_id"]: r for r in tree.walk_windows(sample_tree())}
+    assert "scratchpad_state" not in records[2]  # tiled, "none" in the tree
+    assert "scratchpad_state" not in records[4]  # floating, wrapper has no state
+
+
+def test_dock_is_recognised_by_its_dockarea_parent():
+    # On i3 4.25.1 the i3bar window reports window_type "unknown"; what marks
+    # it is the enclosing dockarea node (verified live).
+    records = {r["con_id"]: r for r in tree.walk_windows(sample_tree())}
+    assert records[1]["parent_layout"] == "dockarea"
+    assert records[1]["window_type"] == "unknown"
+    assert tree.is_dock(records[1]) is True
+
+
+def _empty_focused_workspace_tree():
+    t = sample_tree()
+    workspace = t["nodes"][0]["nodes"][1]["nodes"][0]
+    workspace["nodes"] = []
+    workspace["floating_nodes"] = []
+    workspace["focused"] = True
+    return t
+
+
+def test_outline_none_workspace_finds_an_empty_focused_workspace():
+    result = tree.outline(_empty_focused_workspace_tree(), None)
+    assert result["workspace"] == "3"
+    assert result["nodes"] == []

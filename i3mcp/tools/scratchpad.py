@@ -54,6 +54,8 @@ async def i3_scratchpad(
         return render.run_targeted(criteria, ", ".join(parts))
 
     # hide_all: a scratchpad window is visible when it sits on a real workspace.
+    # walk_windows records scratchpad_state only when it is meaningful, taking
+    # it from the enclosing floating_con, which is where i3 keeps it.
     try:
         records = tree.walk_windows(ipc.get_connection().query(ipc.GET_TREE))
     except I3Error as exc:
@@ -63,7 +65,6 @@ async def i3_scratchpad(
         record
         for record in records
         if record.get("scratchpad_state")
-        and record["scratchpad_state"] != "none"
         and record.get("workspace") != tree.SCRATCHPAD_WORKSPACE
     ]
 

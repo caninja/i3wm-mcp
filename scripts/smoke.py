@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import json
 import sys
+import time
 
 import i3mcp.tools  # noqa: F401  (registers every tool)
 from i3mcp import ipc
@@ -26,6 +27,29 @@ async def call(name: str, /, **arguments) -> str:
     """Invoke a tool the way an MCP client does and return its text payload."""
     result = await mcp.call_tool(name, arguments)
     return result.content[0].text
+
+
+def expect(label: str, condition: bool, detail: str = "") -> None:
+    """Record an assertion about what i3 actually did, not just that it replied."""
+    results.append((label, bool(condition), "" if condition else detail))
+
+
+def _con_ids(node: dict) -> set:
+    ids = {node.get("id")}
+    for child in (node.get("nodes") or []) + (node.get("floating_nodes") or []):
+        ids |= _con_ids(child)
+    return ids
+
+
+async def wait_until_gone(conn, con_id: int, timeout: float = 2.0) -> bool:
+    """Poll the tree until con_id is no longer in it, so the scratch workspace dies with it."""
+    deadline = time.monotonic() + timeout
+    while True:
+        if con_id not in _con_ids(conn.query(ipc.GET_TREE)):
+            return True
+        if time.monotonic() >= deadline:
+            return False
+        await asyncio.sleep(0.1)
 
 
 async def check(label: str, coro) -> dict:
@@ -108,12 +132,27 @@ async def main() -> int:
         await check("move position", call("i3_move", criteria=by_mark, position_x=50, position_y=50))
         await check("window tiling", call("i3_window", criteria=by_mark, floating="disable"))
         await check("scratchpad move", call("i3_scratchpad", action="move", criteria=by_mark, mark="smoke"))
+        # Any scratchpad window this desktop was already showing counts towards
+        # hide_all, so clear them first and the count below is about this run.
+        await check("scratchpad hide_all (clear)", call("i3_scratchpad", action="hide_all"))
         await check("scratchpad show", call("i3_scratchpad", action="show", mark="smoke"))
-        await check("scratchpad hide_all", call("i3_scratchpad", action="hide_all"))
+        hide_all = await check("scratchpad hide_all", call("i3_scratchpad", action="hide_all"))
+        # i3 keeps scratchpad_state on the floating_con wrapper, so a walk that
+        # only reads the window con hides nothing while still reporting success.
+        expect(
+            "hide_all hid the shown window",
+            hide_all.get("hidden_count") == 1,
+            f"hidden_count={hide_all.get('hidden_count')!r}, expected 1",
+        )
         await check("scratchpad show by criteria", call("i3_scratchpad", action="show", criteria=by_mark))
         await check("mark unmark", call("i3_mark", criteria=by_mark, unmark="smoke"))
 
         await check("kill", call("i3_kill", criteria=by_id))
+        expect(
+            "window gone after kill",
+            await wait_until_gone(conn, con_id),
+            "the smoke window was still in the tree after 2 s",
+        )
 
     finally:
         if original:

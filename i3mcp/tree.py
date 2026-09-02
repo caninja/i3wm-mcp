@@ -7,8 +7,12 @@ floating never matches.
 
 Records are compact: a key is omitted whenever its value is None, False, []
 or {}. `parent_layout` carries the enclosing container's layout
-(splith|splitv|tabbed|stacked), or the string "floating" for a window
-reached through `floating_nodes`. `rect` is `[x, y, width, height]`.
+(splith|splitv|tabbed|stacked|dockarea), or the string "floating" for a
+window reached through `floating_nodes`. `rect` is `[x, y, width, height]`.
+
+`scratchpad_state` lives on the enclosing `floating_con`, never on the window
+con below it, so the walk carries it down the same way it carries `floating`;
+the uninteresting "none" is dropped entirely.
 """
 
 from __future__ import annotations
@@ -36,7 +40,21 @@ def _compact(record: dict) -> dict:
     return compacted
 
 
-def _record(node: dict, workspace: dict | None, output: str | None, parent_layout: str | None) -> dict:
+def _scratchpad_state(node: dict, inherited: str | None = None) -> str | None:
+    """The window's scratchpad state, taken from its floating_con when needed."""
+    state = node.get("scratchpad_state")
+    if not state or state == "none":
+        state = inherited
+    return None if state == "none" else state
+
+
+def _record(
+    node: dict,
+    workspace: dict | None,
+    output: str | None,
+    parent_layout: str | None,
+    scratchpad_state: str | None = None,
+) -> dict:
     props = node.get("window_properties") or {}
     workspace = workspace or {}
     workspace_num = workspace.get("num")
@@ -59,7 +77,7 @@ def _record(node: dict, workspace: dict | None, output: str | None, parent_layou
         "urgent": bool(node.get("urgent")),
         "fullscreen": bool(node.get("fullscreen_mode")),
         "sticky": bool(node.get("sticky")),
-        "scratchpad_state": node.get("scratchpad_state"),
+        "scratchpad_state": _scratchpad_state(node, scratchpad_state),
         "parent_layout": parent_layout,
         "rect": _rect_list(node.get("rect")),
     }
@@ -76,6 +94,7 @@ def walk_windows(tree: dict) -> list[dict]:
         output: str | None,
         parent_layout: str | None,
         floating: bool = False,
+        scratchpad_state: str | None = None,
     ) -> None:
         node_type = node.get("type")
         if node_type == "output":
@@ -86,23 +105,41 @@ def walk_windows(tree: dict) -> list[dict]:
 
         window_id = node.get("window")
         if window_id:
-            records.append(_record(node, workspace, output, "floating" if floating else parent_layout))
+            records.append(
+                _record(
+                    node,
+                    workspace,
+                    output,
+                    "floating" if floating else parent_layout,
+                    scratchpad_state,
+                )
+            )
 
         # A real floating_con carries its own (irrelevant) "layout"; once inside a
         # floating subtree, that stays "floating" all the way down, regardless.
         layout = node.get("layout") or parent_layout
         for child in node.get("nodes") or []:
-            visit(child, workspace, output, layout, floating)
+            visit(child, workspace, output, layout, floating, scratchpad_state)
         for child in node.get("floating_nodes") or []:
-            visit(child, workspace, output, layout, True)
+            # The wrapper is where i3 records the scratchpad state.
+            visit(child, workspace, output, layout, True, _scratchpad_state(child, scratchpad_state))
 
     visit(tree, None, None, None)
     return records
 
 
 def is_dock(record: dict) -> bool:
-    """i3bar and other docked clients appear in the tree as ordinary windows."""
-    return record.get("window_type") == "dock"
+    """i3bar and other docked clients appear in the tree as ordinary windows.
+
+    On i3 4.25.1 the i3bar window reports window_type "unknown"; what marks it
+    is the enclosing node of type/layout "dockarea", carried into records as
+    parent_layout. Raw tree nodes are accepted too, hence the "layout" check.
+    """
+    return (
+        record.get("window_type") == "dock"
+        or record.get("parent_layout") == "dockarea"
+        or record.get("layout") == "dockarea"
+    )
 
 
 def _contains(haystack: Any, needle: str) -> bool:
@@ -219,6 +256,9 @@ def _find_focused_workspace(tree_root: dict) -> dict | None:
     def visit(node: dict, workspace: dict | None) -> dict | None:
         if node.get("type") == "workspace":
             workspace = node
+            # An empty workspace is itself the focused container.
+            if node.get("focused"):
+                return node
         if node.get("window") and node.get("focused"):
             return workspace
         for child in node.get("nodes") or []:

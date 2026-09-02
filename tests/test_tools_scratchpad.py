@@ -49,19 +49,24 @@ async def test_move_with_criteria(fake):
 async def test_hide_all_hides_visible_scratchpad_windows(fake):
     tree_with_visible = sample_tree()
     workspace = tree_with_visible["nodes"][0]["nodes"][1]["nodes"][0]
+    # Real shape (i3 4.25.1): the floating_con wrapper carries the scratchpad
+    # state, the window con below it always reads "none".
     workspace["floating_nodes"].append({
         "type": "floating_con",
         "id": 77,
+        "layout": "splith",
+        "floating": "auto_off",
+        "scratchpad_state": "changed",
         "nodes": [{
             "type": "con",
             "id": 78,
             "window": 780,
             "name": "visible scratch",
             "floating": "user_on",
-            "scratchpad_state": "changed",
+            "scratchpad_state": "none",
             "marks": [],
             "rect": {},
-            "window_properties": {"class": "Alacritty"},
+            "window_properties": {"class": "Term"},
             "nodes": [],
             "floating_nodes": [],
         }],
