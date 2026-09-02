@@ -37,12 +37,17 @@ def run(command: str, **extra: Any) -> str:
     return ok(command=command, **extra)
 
 
+URGENT_NOTE = "i3 acts on one urgent window; these are the candidates."
+
+
 def _target(record: dict) -> dict:
-    return {
+    """Identify one window, staying compact: a key the record lacks is left out."""
+    fields = {
         "con_id": record.get("con_id"),
         "name": record.get("name"),
         "window_class": record.get("window_class"),
     }
+    return {key: value for key, value in fields.items() if value is not None}
 
 
 def run_targeted(criteria: WindowCriteria | None, command: str, **extra: Any) -> str:
@@ -62,6 +67,7 @@ def run_targeted(criteria: WindowCriteria | None, command: str, **extra: Any) ->
         targets = [focused] if focused is not None else []
     else:
         try:
+            criteria.validate_patterns()
             targets = [record for record in records if criteria.matches(record)]
         except ValueError as exc:
             return err(str(exc))
@@ -71,6 +77,11 @@ def run_targeted(criteria: WindowCriteria | None, command: str, **extra: Any) ->
                 criteria=criteria.to_selector(),
                 hint="List windows with i3_query; con_id is the most reliable selector.",
             )
+        if criteria.urgent is not None and len(targets) > 1:
+            # i3's cmd_criteria_match_windows keeps only the single most (or
+            # least) recently urgent container, and the records carry no
+            # urgency timestamp to reproduce that choice here.
+            extra["note"] = URGENT_NOTE
 
     return run(
         prefix_command(criteria, command),

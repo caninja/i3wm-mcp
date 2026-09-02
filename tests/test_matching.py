@@ -7,6 +7,18 @@ from i3mcp.criteria import WindowCriteria
 from tests.conftest import call, fixture_tree
 
 
+def node(root: dict, con_id: int) -> dict:
+    """The raw tree node with this id, for tests that need to tweak the fixture."""
+    pending = [root]
+    while pending:
+        candidate = pending.pop()
+        if candidate.get("id") == con_id:
+            return candidate
+        pending.extend(candidate.get("nodes") or [])
+        pending.extend(candidate.get("floating_nodes") or [])
+    raise AssertionError(f"no fixture node with id {con_id}")
+
+
 def record(con_id: int) -> dict:
     for candidate in tree.walk_windows(fixture_tree()):
         if candidate["con_id"] == con_id:
@@ -107,6 +119,12 @@ def test_invalid_regex_names_the_field():
         WindowCriteria(title="alpha(", match="regex").matches(ALPHA)
 
 
+def test_an_invalid_regex_is_reported_even_when_no_record_reaches_it():
+    # BETA carries no marks, so nothing would ever apply the con_mark pattern.
+    with pytest.raises(ValueError, match="con_mark"):
+        WindowCriteria(con_mark="a(", match="regex").matches(BETA)
+
+
 # --- run_targeted -----------------------------------------------------------
 
 
@@ -152,6 +170,32 @@ def test_targets_are_capped_at_twenty(fake):
     result = json.loads(render.run_targeted(WindowCriteria(window_class="Many"), "kill"))
     assert result["target_count"] == 25
     assert len(result["targets"]) == 20
+
+
+def test_targets_omit_keys_the_record_does_not_have(fake):
+    fake.query_replies[ipc.GET_TREE] = {
+        "type": "root",
+        "name": "root",
+        "nodes": [{
+            "type": "workspace",
+            "name": "1",
+            "num": 1,
+            "output": "OUT-1",
+            "layout": "splith",
+            "nodes": [{
+                "type": "con",
+                "id": 5001,
+                "window": 6001,
+                "rect": {},
+                "nodes": [],
+                "floating_nodes": [],
+            }],
+            "floating_nodes": [],
+        }],
+        "floating_nodes": [],
+    }
+    result = json.loads(render.run_targeted(WindowCriteria(con_id=5001), "kill"))
+    assert result["targets"] == [{"con_id": 5001}]
 
 
 def test_tree_failure_is_reported(fake):
@@ -223,6 +267,31 @@ async def test_focus_workspace_goes_through_the_tree_check(fake):
     result = json.loads(await call("i3_focus", criteria={"con_mark": "m1"}, focus_workspace=True))
     assert fake.last_command == r'[con_mark="^\Qm1\E$"] focus workspace'
     assert result["target_count"] == 1
+
+
+async def test_urgent_with_several_candidates_says_i3_acts_on_one(fake):
+    two_urgent = fixture_tree()
+    node(two_urgent, 1001)["urgent"] = True
+    fake.query_replies[ipc.GET_TREE] = two_urgent
+    result = json.loads(await call("i3_kill", criteria={"urgent": "latest"}))
+    assert result["target_count"] == 2
+    assert result["note"] == "i3 acts on one urgent window; these are the candidates."
+
+
+async def test_a_single_urgent_candidate_needs_no_note(fake):
+    result = json.loads(await call("i3_kill", criteria={"urgent": "latest"}))
+    assert result["target_count"] == 1
+    assert "note" not in result
+
+
+async def test_an_invalid_con_mark_regex_is_reported_with_no_marks_in_the_tree(fake):
+    unmarked = fixture_tree()
+    node(unmarked, 1001)["marks"] = []
+    fake.query_replies[ipc.GET_TREE] = unmarked
+    result = json.loads(await call("i3_kill", criteria={"con_mark": "a(", "match": "regex"}))
+    assert result["success"] is False
+    assert "con_mark" in result["error"]
+    assert fake.commands == []
 
 
 async def test_an_invalid_regex_is_reported_as_an_error(fake):

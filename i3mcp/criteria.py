@@ -29,6 +29,14 @@ def pattern_for(value: str, mode: MatchMode) -> str:
     return f"^{quoted}$"
 
 
+def compile_pattern(pattern: str, field: str) -> re.Pattern:
+    """Compile a criteria regex, naming the field it came from if it is invalid."""
+    try:
+        return re.compile(pattern)
+    except re.error as exc:
+        raise ValueError(f"Invalid regex for criteria field '{field}': {exc}") from exc
+
+
 def value_matches(pattern: str, value: Any, mode: MatchMode, field: str) -> bool:
     """Apply one criteria value to one record value, the way i3 would."""
     if value is None:
@@ -37,10 +45,7 @@ def value_matches(pattern: str, value: Any, mode: MatchMode, field: str) -> bool
     if mode == "substring":
         return pattern in text
     if mode == "regex":
-        try:
-            return re.search(pattern, text) is not None
-        except re.error as exc:
-            raise ValueError(f"Invalid regex for criteria field '{field}': {exc}") from exc
+        return compile_pattern(pattern, field).search(text) is not None
     return pattern == text
 
 
@@ -74,8 +79,27 @@ class WindowCriteria(BaseModel):
         default="exact", description="How strings match: exact (default), substring, regex."
     )
 
+    def _string_fields(self) -> tuple[tuple[str, str | None], ...]:
+        return (
+            ("window_class", self.window_class),
+            ("instance", self.instance),
+            ("title", self.title),
+            ("window_role", self.window_role),
+            ("workspace", self.workspace),
+            ("con_mark", self.con_mark),
+        )
+
+    def validate_patterns(self) -> None:
+        """Reject an invalid regex up front, so the field is named whatever the tree holds."""
+        if self.match != "regex":
+            return
+        for field, pattern in self._string_fields():
+            if pattern is not None:
+                compile_pattern(pattern, field)
+
     def matches(self, record: dict) -> bool:
         """Does a window record satisfy every field set here? Fields are ANDed."""
+        self.validate_patterns()
         for field, pattern, value in (
             ("window_class", self.window_class, record.get("window_class")),
             ("instance", self.instance, record.get("instance")),
