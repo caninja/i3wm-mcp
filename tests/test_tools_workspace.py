@@ -11,7 +11,7 @@ async def test_switch_by_name(fake):
 
 async def test_switch_by_number(fake):
     await call("i3_workspace", action="switch", name="3", by_number=True)
-    assert fake.last_command == "workspace number 3"
+    assert fake.last_command == 'workspace number "3"'
 
 
 async def test_switch_no_auto_back_and_forth(fake):
@@ -93,3 +93,22 @@ async def test_bulk_move_quotes_the_output(fake):
     fake.query_replies[ipc.GET_WORKSPACES] = [{"name": "1", "output": "OUT-2"}]
     await call("i3_workspace", action="bulk_move", names=["1"], output="Some Output")
     assert fake.last_command == 'workspace "1"; move workspace to output "Some Output"'
+
+
+async def test_switch_by_number_quotes_a_value_with_a_semicolon(fake):
+    await call("i3_workspace", action="switch", name="3; nop injected", by_number=True)
+    assert fake.last_command == 'workspace number "3; nop injected"'
+
+
+async def test_switch_by_number_with_no_auto_back_and_forth_quotes_the_value(fake):
+    await call(
+        "i3_workspace", action="switch", name="3", by_number=True, no_auto_back_and_forth=True
+    )
+    assert fake.last_command == 'workspace --no-auto-back-and-forth number "3"'
+
+
+async def test_move_to_output_by_number_quotes_the_workspace(fake):
+    await call(
+        "i3_workspace", action="move_to_output", name="3", by_number=True, output="HDMI-1"
+    )
+    assert fake.last_command == 'workspace number "3"; move workspace to output "HDMI-1"'

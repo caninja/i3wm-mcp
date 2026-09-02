@@ -93,7 +93,7 @@ async def i3_move(
         if workspace in _RELATIVE_WORKSPACES:
             command = f"move container to workspace {workspace}"
         elif by_number:
-            command = f"move {flag}container to workspace number {workspace}"
+            command = f'move {flag}container to workspace number "{escape_value(workspace)}"'
         else:
             command = f'move {flag}container to workspace "{escape_value(workspace)}"'
     elif output is not None:
@@ -124,7 +124,7 @@ async def i3_move(
         if workspace in _RELATIVE_WORKSPACES:
             follow_cmd = f"workspace {workspace}"
         elif by_number:
-            follow_cmd = f"workspace number {workspace}"
+            follow_cmd = f'workspace number "{escape_value(workspace)}"'
         else:
             follow_cmd = f'workspace "{escape_value(workspace)}"'
         # The ";" ends the criteria's scope in i3, so the follow-up switch runs

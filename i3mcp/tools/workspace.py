@@ -16,7 +16,10 @@ from ..server import mcp
 def _workspace_ref(name: str, by_number: bool, no_auto_back_and_forth: bool = False) -> str:
     flag = "--no-auto-back-and-forth " if no_auto_back_and_forth else ""
     if by_number:
-        return f"workspace {flag}number {name}"
+        # `name` is free-form even here, and i3 parses a quoted number token
+        # (verified live: `workspace number "99"` and `number "3: web"`).
+        return f'workspace {flag}number "{escape_value(name)}"'
+
     return f'workspace {flag}"{escape_value(name)}"'
 
 

@@ -25,7 +25,7 @@ async def test_move_to_workspace_by_name(fake):
 
 async def test_move_to_workspace_by_number(fake):
     await call("i3_move", workspace="3", by_number=True)
-    assert fake.last_command == "move container to workspace number 3"
+    assert fake.last_command == 'move container to workspace number "3"'
 
 
 async def test_move_to_relative_workspace(fake):
@@ -132,3 +132,22 @@ async def test_move_to_output_quotes_a_relative_keyword(fake):
     # Verified live on i3 4.25.1: quoted keywords resolve exactly as bare ones.
     await call("i3_move", output="right")
     assert fake.last_command == 'move container to output "right"'
+
+
+async def test_move_by_number_and_follow_quotes_both_halves(fake):
+    await call("i3_move", workspace="3", by_number=True, follow=True)
+    assert fake.last_command == (
+        'move container to workspace number "3"; workspace number "3"'
+    )
+
+
+async def test_move_by_number_quotes_a_value_with_a_semicolon(fake):
+    """by_number takes a free-form string; unquoted it would inject a command."""
+    await call("i3_move", workspace="3; nop injected", by_number=True)
+    assert fake.last_command == 'move container to workspace number "3; nop injected"'
+
+
+async def test_move_by_number_quotes_a_named_workspace(fake):
+    # Verified live on i3 4.25.1: `workspace number "3: web"` parses.
+    await call("i3_move", workspace="3: web", by_number=True)
+    assert fake.last_command == 'move container to workspace number "3: web"'

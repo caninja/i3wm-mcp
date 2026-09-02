@@ -112,7 +112,10 @@ uv run python scripts/smoke.py                        # live, drives real i3
 ```
 
 The smoke test opens and closes a real window on a scratch workspace and
-restores your previously focused workspace. Run it deliberately.
+restores your previously focused workspace. Its `hide_all` step also hides --
+never closes -- any scratchpad window you currently have showing, and it does
+not put them back; your usual scratchpad show binding brings each one back. Run
+it deliberately.
 
 Try:
 - "What workspaces do I have?"

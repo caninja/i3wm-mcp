@@ -5,6 +5,11 @@ Uses xterm to launch a real window. Creates a scratch workspace, runs each
 tool, and restores the previously focused workspace. Run it deliberately:
 
     uv run --with mcp --with pydantic python scripts/smoke.py
+
+One side effect worth knowing about: exercising i3_scratchpad(action="hide_all")
+hides -- never closes -- any scratchpad window your desktop happens to be
+showing, and this script does not put them back; your usual scratchpad show
+binding brings each one straight back.
 """
 
 from __future__ import annotations
@@ -19,6 +24,10 @@ from i3mcp import ipc
 from i3mcp.server import mcp
 
 SCRATCH_WS = "i3mcp_smoke_test"
+
+
+class SmokeAborted(Exception):
+    """A step failed so badly the rest of the run cannot proceed."""
 
 results: list[tuple[str, bool, str]] = []
 
@@ -94,8 +103,8 @@ async def main() -> int:
         window = exec_result.get("window") or {}
         con_id = window.get("con_id")
         if con_id is None:
-            results.append(("window appeared", False, "exec timed out waiting for a new window"))
-            raise SystemExit
+            expect("window appeared", False, "exec timed out waiting for a new window")
+            raise SmokeAborted
 
         by_id = {"con_id": con_id}
         await check("focus criteria", call("i3_focus", criteria=by_id))
@@ -154,6 +163,9 @@ async def main() -> int:
             "the smoke window was still in the tree after 2 s",
         )
 
+    except SmokeAborted:
+        # Skip the window-driven steps, but still print the summary and exit 1.
+        pass
     finally:
         if original:
             conn.command(f'workspace "{original}"')
