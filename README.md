@@ -5,7 +5,7 @@
 A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server providing programmatic control of the [i3 window manager](https://i3wm.org/). This server exposes 13 tools covering i3 functionality, enabling AI assistants to manage windows, workspaces, layouts, gaps, and more through natural conversation.
 
 [![MCP](https://img.shields.io/badge/MCP-Compatible-blue)](https://modelcontextprotocol.io/)
-[![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![i3wm](https://img.shields.io/badge/i3wm-4.x-orange)](https://i3wm.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -72,7 +72,7 @@ and resolved automatically by `uv`. There is nothing else to install by hand.
 
 | Tool | Does |
 |------|------|
-| `i3_query` | Read i3 state: tree, focused window, scratchpad, workspaces, outputs, marks, version, config, bar config, binding modes/state. |
+| `i3_query` | Read i3 state: tree, focused window, scratchpad, one workspace's layout outline, workspaces, outputs, marks, version, config, bar config, binding modes/state. |
 | `i3_focus` | Move keyboard focus by direction, container relationship, sibling, output, or criteria. |
 | `i3_move` | Move a container to a workspace, output, position, mark, or the scratchpad; or swap two containers. |
 | `i3_resize` | Grow, shrink, or set the size of a container, in px or ppt. |
@@ -81,10 +81,10 @@ and resolved automatically by `uv`. There is nothing else to install by hand.
 | `i3_layout` | Set a container's layout or split orientation. |
 | `i3_workspace` | Switch, navigate, rename, or move workspaces between outputs. |
 | `i3_mark` | Set or remove marks on a window. |
-| `i3_scratchpad` | Show, hide, or move windows in the scratchpad, keyed by mark. |
+| `i3_scratchpad` | Move windows into the scratchpad, show one by mark or by criteria, or hide every shown one. |
 | `i3_gaps` | Set or adjust inner/outer/edge gaps. |
 | `i3_bar` | Set i3bar's display mode or hidden state. |
-| `i3_wm` | Launch applications, reload/restart i3, switch binding mode, or control logging. |
+| `i3_wm` | Launch applications, optionally waiting for the new window; reload/restart i3; switch binding mode; or control logging. |
 
 ## Criteria
 
@@ -97,6 +97,13 @@ default. Set `match` to `substring` or `regex` for looser matching. `con_id`
 (from `i3_query`) is the most precise and stable handle — prefer it once you
 know it.
 
+Every criteria-taking tool reports what it actually hit: the response carries
+`targets` (up to 20, each with `con_id`, `name`, `window_class`) and
+`target_count`. When criteria match no window, the tool returns
+`success: false` with `"No window matches the criteria."` and a hint, and
+sends nothing to i3 — it never silently does nothing the way a raw i3 command
+with an empty criteria selector would.
+
 ## Verification
 
 ```bash
@@ -105,7 +112,10 @@ uv run python scripts/smoke.py                        # live, drives real i3
 ```
 
 The smoke test opens and closes a real window on a scratch workspace and
-restores your previously focused workspace. Run it deliberately.
+restores your previously focused workspace. Its `hide_all` step also hides --
+never closes -- any scratchpad window you currently have showing, and it does
+not put them back; your usual scratchpad show binding brings each one back. Run
+it deliberately.
 
 Try:
 - "What workspaces do I have?"
@@ -119,7 +129,14 @@ Try:
   `"3: web"` — plain `workspace 3` would create a new workspace called `3`
   instead of switching to the existing one.
 - `i3_wm(action="exec")` returns as soon as i3 accepts the command, before the
-  new window exists. Poll `i3_query(what="tree")` for it rather than assuming
-  it's there immediately.
+  new window exists. Pass `wait_seconds` (0.1–60) to get the new window's
+  record — con_id included — back instead of assuming it's there immediately;
+  past the deadline you get `timed_out: true` rather than an error.
+- `exec` commands may contain `;` and `,` freely — the tool quotes the whole
+  command for you, so those characters don't need escaping or splitting into
+  separate calls.
+- `i3_move`'s `center` and `position_x`/`position_y` are per-output by
+  default (e.g. centering on the output the window is already on). Pass
+  `absolute=true` to have the coordinates span every output instead.
 - `exit` is not exposed on purpose — terminating the i3 session isn't
   something a tool call should be able to do by accident.

@@ -7,8 +7,8 @@ from typing import Literal
 from pydantic import Field
 
 from .. import render
-from ..criteria import WindowCriteria, prefix_command
-from ..server import mcp, resolve_defaults
+from ..criteria import WindowCriteria
+from ..server import mcp
 
 
 @mcp.tool(
@@ -21,22 +21,16 @@ from ..server import mcp, resolve_defaults
         "openWorldHint": False,
     },
 )
-@resolve_defaults
 async def i3_layout(
-    criteria: WindowCriteria | None = Field(
-        default=None, description="Which container to change. Omit for the focused one."
-    ),
+    criteria: WindowCriteria | None = Field(default=None),
     layout: Literal[
         "default", "tabbed", "stacking", "splitv", "splith", "toggle split", "toggle all"
-    ] | None = Field(default=None, description="Arrangement for the container's children."),
+    ] | None = Field(default=None, description="Arrangement of the container's children."),
     split: Literal["horizontal", "vertical", "toggle"] | None = Field(
         default=None, description="Orientation for the next window opened here."
     ),
 ) -> str:
-    """Change a container's layout, or set the split orientation for the next window.
-
-    Give layout, split, or both.
-    """
+    """Set a container's layout, its split orientation, or both."""
     parts = []
     if layout is not None:
         parts.append(f"layout {layout}")
@@ -44,4 +38,4 @@ async def i3_layout(
         parts.append(f"split {split}")
     if not parts:
         return render.err("Specify layout, split, or both.")
-    return render.run(prefix_command(criteria, ", ".join(parts)))
+    return render.run_targeted(criteria, ", ".join(parts))

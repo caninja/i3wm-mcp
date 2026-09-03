@@ -1,7 +1,6 @@
 import pytest
 
 from i3mcp.criteria import WindowCriteria, escape_value, pattern_for, prefix_command
-from i3mcp.enums import MatchMode
 
 
 def test_escape_order():
@@ -11,15 +10,15 @@ def test_escape_order():
 
 
 def test_exact_mode_anchors_and_quotes_literally():
-    assert pattern_for("Firefox", MatchMode.EXACT) == r"^\QFirefox\E$"
+    assert pattern_for("Firefox", "exact") == r"^\QFirefox\E$"
 
 
 def test_substring_mode_quotes_without_anchors():
-    assert pattern_for("fire", MatchMode.SUBSTRING) == r"\Qfire\E"
+    assert pattern_for("fire", "substring") == r"\Qfire\E"
 
 
 def test_regex_mode_passes_through():
-    assert pattern_for("(?i)^fire", MatchMode.REGEX) == "(?i)^fire"
+    assert pattern_for("(?i)^fire", "regex") == "(?i)^fire"
 
 
 def test_empty_criteria_is_empty_selector():
@@ -45,9 +44,18 @@ def test_window_id_is_numeric_and_unquoted():
 
 
 def test_valueless_criteria_emit_bare_keys():
-    assert WindowCriteria(floating=True).to_selector() == "[floating]"
-    assert WindowCriteria(tiling=True).to_selector() == "[tiling]"
     assert WindowCriteria(all=True).to_selector() == "[all]"
+
+
+def test_floating_is_tri_state():
+    assert WindowCriteria(floating=True).to_selector() == "[floating]"
+    assert WindowCriteria(floating=False).to_selector() == "[tiling]"
+    assert WindowCriteria().to_selector() == ""
+
+
+def test_machine_is_no_longer_a_criterion():
+    with pytest.raises(ValueError):
+        WindowCriteria(machine="localhost")
 
 
 def test_urgent_uses_i3_vocabulary_not_yes():
@@ -61,7 +69,7 @@ def test_urgent_rejects_boolean_style_values():
 
 
 def test_regex_mode_applies_to_string_fields():
-    got = WindowCriteria(title="term.*", match=MatchMode.REGEX).to_selector()
+    got = WindowCriteria(title="term.*", match="regex").to_selector()
     assert got == '[title="term.*"]'
 
 

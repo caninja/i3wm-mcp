@@ -8,6 +8,7 @@ import socket
 import struct
 import subprocess
 import threading
+import time
 from typing import Any
 
 MAGIC = b"i3-ipc"
@@ -26,6 +27,11 @@ GET_CONFIG = 9
 SEND_TICK = 10
 SYNC = 11
 GET_BINDING_STATE = 12
+
+# A frame whose type has the high bit set is an event, not a reply; the low
+# bits are the event number (3 = window).
+EVENT_MASK = 0x80000000
+EVENT_WINDOW = 3
 
 
 class I3Error(Exception):
@@ -55,6 +61,30 @@ def find_socket_path() -> str:
     if not path:
         raise I3Error("i3 --get-socketpath returned nothing; is i3 running?")
     return path
+
+
+def _recv_exactly(sock, count: int) -> bytes:
+    buf = b""
+    while len(buf) < count:
+        chunk = sock.recv(count - len(buf))
+        if not chunk:
+            raise I3Error("i3 closed the IPC connection")
+        buf += chunk
+    return buf
+
+
+def _read_frame(sock) -> tuple[int, Any]:
+    """Read one i3 frame: the 14-byte header, then its JSON payload."""
+    header = _recv_exactly(sock, HEADER_LEN)
+    if header[:6] != MAGIC:
+        raise I3Error("Malformed IPC reply header from i3")
+    length, msg_type = struct.unpack("=II", header[6:HEADER_LEN])
+    return msg_type, json.loads(_recv_exactly(sock, length))
+
+
+def _send_frame(sock, msg_type: int, payload: str) -> None:
+    body = payload.encode()
+    sock.sendall(MAGIC + struct.pack("=II", len(body), msg_type) + body)
 
 
 class I3Connection:
@@ -89,24 +119,11 @@ class I3Connection:
             finally:
                 self._sock = None
 
-    def _recv_exactly(self, sock: socket.socket, count: int) -> bytes:
-        buf = b""
-        while len(buf) < count:
-            chunk = sock.recv(count - len(buf))
-            if not chunk:
-                raise I3Error("i3 closed the IPC connection")
-            buf += chunk
-        return buf
-
     def _request_once(self, msg_type: int, payload: str) -> Any:
         sock = self._connect()
-        body = payload.encode()
-        sock.sendall(MAGIC + struct.pack("=II", len(body), msg_type) + body)
-        header = self._recv_exactly(sock, HEADER_LEN)
-        if header[:6] != MAGIC:
-            raise I3Error("Malformed IPC reply header from i3")
-        length, _reply_type = struct.unpack("=II", header[6:HEADER_LEN])
-        return json.loads(self._recv_exactly(sock, length))
+        _send_frame(sock, msg_type, payload)
+        _reply_type, reply = _read_frame(sock)
+        return reply
 
     def request(self, msg_type: int, payload: str = "") -> Any:
         """Send one message, retrying once on a dropped connection."""
@@ -133,6 +150,73 @@ class I3Connection:
                 detail = f"{detail}\n  {cmd}\n  {first['errorposition']}"
             raise I3Error(detail, replies=replies)
         return replies
+
+
+class EventStream:
+    """A second socket, subscribed to i3 events.
+
+    Events must never share the command connection: they would interleave with
+    replies and desynchronise it. Reads are bounded by `next_event`'s timeout;
+    a timeout mid-frame leaves the stream unusable, so close it afterwards.
+    """
+
+    def __init__(self, sock):
+        self._sock = sock
+
+    def handshake(self, events: list[str]) -> None:
+        """Send SUBSCRIBE for these event names and check i3 accepted it."""
+        self._sock.settimeout(5)
+        _send_frame(self._sock, SUBSCRIBE, json.dumps(events))
+        _msg_type, reply = _read_frame(self._sock)
+        if not (isinstance(reply, dict) and reply.get("success")):
+            raise I3Error(f"i3 refused the event subscription for {events}")
+
+    def next_event(self, timeout: float) -> Any | None:
+        """Return the next event payload, or None if none arrives in time."""
+        deadline = time.monotonic() + timeout
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return None
+            self._sock.settimeout(remaining)
+            try:
+                msg_type, payload = _read_frame(self._sock)
+            except (socket.timeout, TimeoutError):
+                return None
+            if msg_type & EVENT_MASK:
+                return payload
+
+    def close(self) -> None:
+        self._sock.close()
+
+    def __enter__(self) -> "EventStream":
+        return self
+
+    def __exit__(self, *exc_info) -> None:
+        self.close()
+
+
+def subscribe(events: list[str], socket_path: str | None = None) -> EventStream:
+    """Open a fresh socket subscribed to these i3 events.
+
+    Defaults to the path the command connection already resolved: resolving it
+    again forks `i3 --get-socketpath` every time I3SOCK is unset.
+    """
+    path = socket_path or get_connection().socket_path
+    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    sock.settimeout(5)
+    try:
+        sock.connect(path)
+    except OSError as exc:
+        sock.close()
+        raise I3Error(f"Cannot connect to i3 at {path}: {exc}") from exc
+    stream = EventStream(sock)
+    try:
+        stream.handshake(events)
+    except (OSError, I3Error):
+        stream.close()
+        raise
+    return stream
 
 
 _connection: I3Connection | None = None

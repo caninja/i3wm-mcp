@@ -7,10 +7,9 @@ from typing import Literal
 from pydantic import Field
 
 from .. import ipc, render, tree
-from ..criteria import WindowCriteria, escape_value, prefix_command
-from ..enums import MatchMode
+from ..criteria import WindowCriteria, escape_value
 from ..ipc import I3Error
-from ..server import mcp, resolve_defaults
+from ..server import mcp
 
 
 @mcp.tool(
@@ -23,28 +22,28 @@ from ..server import mcp, resolve_defaults
         "openWorldHint": False,
     },
 )
-@resolve_defaults
 async def i3_scratchpad(
     action: Literal["show", "move", "hide_all"] = Field(
-        description="show toggles a window in or out; move sends one in; hide_all sends every visible one back."
+        description="show toggles one in or out; move sends one in; hide_all sends all back."
     ),
     mark: str | None = Field(
         default=None,
-        description="Named scratchpad. On move the mark is set; on show it is looked up. "
-        "Use the same name for both.",
+        description="Named scratchpad: set on move, looked up on show; "
+        "use the same name for both.",
     ),
-    criteria: WindowCriteria | None = Field(
-        default=None, description="For move: which window to send. Omit for the focused one."
-    ),
+    criteria: WindowCriteria | None = Field(default=None, description="show/move only."),
 ) -> str:
-    """Show, hide, or populate the scratchpad. Named scratchpads are addressed by mark.
-
-    List what is in the scratchpad with i3_query(what='scratchpad').
-    """
+    """Show, hide or populate the scratchpad; named ones are addressed by mark.
+    List its contents with i3_query(what='scratchpad')."""
     if action == "show":
+        has_criteria = criteria is not None and not criteria.is_empty()
+        if mark is not None and has_criteria:
+            return render.err("Give mark or criteria for show, not both.")
         if mark is not None:
-            selector = WindowCriteria(con_mark=mark, match=MatchMode.EXACT).to_selector()
-            return render.run(f"{selector} scratchpad show")
+            by_mark = WindowCriteria(con_mark=mark, match="exact")
+            return render.run_targeted(by_mark, "scratchpad show")
+        if has_criteria:
+            return render.run_targeted(criteria, "scratchpad show")
         return render.run("scratchpad show")
 
     if action == "move":
@@ -52,9 +51,11 @@ async def i3_scratchpad(
         if mark is not None:
             parts.append(f'mark --replace "{escape_value(mark)}"')
         parts.append("move scratchpad")
-        return render.run(prefix_command(criteria, ", ".join(parts)))
+        return render.run_targeted(criteria, ", ".join(parts))
 
     # hide_all: a scratchpad window is visible when it sits on a real workspace.
+    # walk_windows records scratchpad_state only when it is meaningful, taking
+    # it from the enclosing floating_con, which is where i3 keeps it.
     try:
         records = tree.walk_windows(ipc.get_connection().query(ipc.GET_TREE))
     except I3Error as exc:
@@ -64,7 +65,6 @@ async def i3_scratchpad(
         record
         for record in records
         if record.get("scratchpad_state")
-        and record["scratchpad_state"] != "none"
         and record.get("workspace") != tree.SCRATCHPAD_WORKSPACE
     ]
 
@@ -74,8 +74,14 @@ async def i3_scratchpad(
         try:
             ipc.get_connection().command(f"[con_id={record['con_id']}] move scratchpad")
         except I3Error as exc:
-            failed.append({"con_id": record["con_id"], "name": record["name"], "error": str(exc)})
+            failed.append({"con_id": record["con_id"], "name": record.get("name"), "error": str(exc)})
             continue
-        hidden.append({"con_id": record["con_id"], "name": record["name"], "class": record["window_class"]})
+        hidden.append(
+            {
+                "con_id": record["con_id"],
+                "name": record.get("name"),
+                "class": record.get("window_class"),
+            }
+        )
 
     return render.ok(hidden_count=len(hidden), hidden=hidden, failed=failed)

@@ -822,7 +822,7 @@ def sample_tree():
                                                 "type": "con",
                                                 "id": 4,
                                                 "window": 444,
-                                                "name": "Nedlastinger - Thunar",
+                                                "name": "Downloads - Thunar",
                                                 "floating": "user_on",
                                                 "focused": False,
                                                 "urgent": False,

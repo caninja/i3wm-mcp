@@ -5,8 +5,8 @@ from __future__ import annotations
 from pydantic import Field
 
 from .. import render
-from ..criteria import WindowCriteria, prefix_command
-from ..server import mcp, resolve_defaults
+from ..criteria import WindowCriteria
+from ..server import mcp
 
 
 @mcp.tool(
@@ -19,15 +19,9 @@ from ..server import mcp, resolve_defaults
         "openWorldHint": False,
     },
 )
-@resolve_defaults
 async def i3_kill(
-    criteria: WindowCriteria | None = Field(
-        default=None,
-        description="Which window to close. Omit to close the focused one.",
-    ),
+    criteria: WindowCriteria | None = Field(default=None),
 ) -> str:
-    """Close a window. The application may prompt to save first.
-
-    Destructive: confirm the target before calling without criteria.
-    """
-    return render.run(prefix_command(criteria, "kill"))
+    """Close a window (the focused one without criteria); the app may prompt to
+    save. Destructive: confirm the target first."""
+    return render.run_targeted(criteria, "kill")

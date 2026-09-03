@@ -8,14 +8,18 @@ from pydantic import Field
 
 from .. import ipc, render
 from ..criteria import escape_value
+from ..enums import WORKSPACE_KEYWORDS
 from ..ipc import I3Error
-from ..server import mcp, resolve_defaults
+from ..server import mcp
 
 
 def _workspace_ref(name: str, by_number: bool, no_auto_back_and_forth: bool = False) -> str:
     flag = "--no-auto-back-and-forth " if no_auto_back_and_forth else ""
     if by_number:
-        return f"workspace {flag}number {name}"
+        # `name` is free-form even here, and i3 parses a quoted number token
+        # (verified live: `workspace number "99"` and `number "3: web"`).
+        return f'workspace {flag}number "{escape_value(name)}"'
+
     return f'workspace {flag}"{escape_value(name)}"'
 
 
@@ -29,44 +33,34 @@ def _workspace_ref(name: str, by_number: bool, no_auto_back_and_forth: bool = Fa
         "openWorldHint": False,
     },
 )
-@resolve_defaults
 async def i3_workspace(
-    action: Literal["switch", "navigate", "rename", "move_to_output", "bulk_move"] = Field(
-        description="What to do with the workspace."
-    ),
+    action: Literal["switch", "navigate", "rename", "move_to_output", "bulk_move"] = Field(),
     name: str | None = Field(
         default=None,
-        description="Workspace name. For rename and move_to_output, omit to act on the focused one.",
+        description="Name, or for switch one of next, prev, next_on_output, "
+        "prev_on_output, back_and_forth, which ignore by_number. "
+        "Omit on rename/move_to_output for the focused one.",
     ),
-    by_number: bool = Field(
-        default=False,
-        description="Treat name as a number. Needed for named workspaces like '3: web', where "
-        "plain 'workspace 3' would create a new workspace instead of switching.",
-    ),
-    no_auto_back_and_forth: bool = Field(
-        default=False, description="Suppress i3's automatic back_and_forth behaviour."
-    ),
+    by_number: bool = Field(default=False, description="For workspaces named like '3: web': match by leading number."),
+    no_auto_back_and_forth: bool = Field(default=False, description="Suppress i3's automatic back_and_forth."),
     direction: Literal[
         "next", "prev", "next_on_output", "prev_on_output", "back_and_forth"
-    ] | None = Field(default=None, description="For action=navigate."),
-    new_name: str | None = Field(default=None, description="For action=rename: the new name."),
+    ] | None = Field(default=None, description="navigate only."),
+    new_name: str | None = Field(default=None, description="rename: the new name."),
     output: str | None = Field(
-        default=None, description="For move_to_output and bulk_move: the target output."
+        default=None, description="move_to_output/bulk_move: target output."
     ),
-    names: list[str] | None = Field(
-        default=None, description="For action=bulk_move: workspaces to move."
-    ),
+    names: list[str] | None = Field(default=None, description="bulk_move: workspaces to move."),
     preserve: str | None = Field(
-        default=None, description="For bulk_move: a workspace to leave where it is."
+        default=None, description="bulk_move: one to leave where it is."
     ),
 ) -> str:
-    """Switch, navigate, rename, or move workspaces between outputs.
-
-    Use by_number=true whenever workspaces are named like '3: web'.
-    """
+    """Switch, navigate, rename, or move workspaces between outputs."""
     if action == "switch":
         if name is None:
             return render.err("action=switch needs a name.")
+        if name in WORKSPACE_KEYWORDS:
+            return render.run(f"workspace {name}")
         return render.run(_workspace_ref(name, by_number, no_auto_back_and_forth))
 
     if action == "navigate":
@@ -86,7 +80,7 @@ async def i3_workspace(
     if action == "move_to_output":
         if output is None:
             return render.err("action=move_to_output needs an output.")
-        command = f"move workspace to output {output}"
+        command = f'move workspace to output "{escape_value(output)}"'
         if name is not None:
             command = f"{_workspace_ref(name, by_number)}; {command}"
         return render.run(command)
@@ -108,7 +102,10 @@ async def i3_workspace(
         if ws_name not in existing:
             skipped.append({"name": ws_name, "reason": "does not exist"})
             continue
-        command = f'{_workspace_ref(ws_name, False)}; move workspace to output {output}'
+        command = (
+            f'{_workspace_ref(ws_name, False)}; '
+            f'move workspace to output "{escape_value(output)}"'
+        )
         try:
             ipc.get_connection().command(command)
         except I3Error as exc:

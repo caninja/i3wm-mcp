@@ -5,11 +5,11 @@ from __future__ import annotations
 from pydantic import Field
 
 from .. import render
-from ..criteria import WindowCriteria, escape_value, prefix_command
-from ..enums import Direction, Unit
-from ..server import mcp, resolve_defaults
+from ..criteria import WindowCriteria, escape_value
+from ..enums import Direction, Unit, WORKSPACE_KEYWORDS
+from ..server import mcp
 
-_RELATIVE_WORKSPACES = {"next", "prev", "current", "next_on_output", "prev_on_output"}
+_RELATIVE_WORKSPACES = WORKSPACE_KEYWORDS | {"current"}
 
 
 @mcp.tool(
@@ -22,47 +22,45 @@ _RELATIVE_WORKSPACES = {"next", "prev", "current", "next_on_output", "prev_on_ou
         "openWorldHint": False,
     },
 )
-@resolve_defaults
 async def i3_move(
-    criteria: WindowCriteria | None = Field(
-        default=None, description="Which window to move. Omit to move the focused one."
+    criteria: WindowCriteria | None = Field(default=None),
+    direction: Direction | None = Field(default=None, description="Step this way."),
+    amount: int | None = Field(default=None, description="With direction: how far.", ge=1),
+    unit: Unit = Field(
+        default="px",
+        description="For amount and position; ppt is percent of the output.",
     ),
-    direction: Direction | None = Field(default=None, description="Move one step in this direction."),
-    amount: int | None = Field(default=None, description="With direction: how far to move.", ge=1),
-    unit: Unit = Field(default=Unit.PX, description="Unit for amount and position: px or ppt."),
     workspace: str | None = Field(
         default=None,
-        description="Target workspace name, or next/prev/current for a relative move.",
+        description="Target name, or next/prev/current/next_on_output/"
+        "prev_on_output/back_and_forth.",
     ),
     by_number: bool = Field(
-        default=False,
-        description="Treat workspace as a number. Use this with named workspaces like '3: web', "
-        "where plain 'workspace 3' would create a new one instead of switching.",
+        default=False, description="For workspaces named like '3: web': match by leading number."
     ),
-    follow: bool = Field(default=False, description="Switch to the workspace after moving."),
+    follow: bool = Field(default=False, description="Switch to it after moving."),
     no_auto_back_and_forth: bool = Field(
-        default=False, description="Suppress i3's automatic back_and_forth behaviour."
+        default=False, description="Suppress i3's automatic back_and_forth."
     ),
-    output: str | None = Field(
-        default=None, description="Target output name or relative position."
-    ),
+    output: str | None = Field(default=None, description="Target output name or position."),
     move_workspace: bool = Field(
-        default=False, description="With output: move the whole workspace instead of the container."
+        default=False, description="With output: move the whole workspace."
     ),
-    position_x: int | None = Field(default=None, description="Absolute X for a floating window."),
-    position_y: int | None = Field(default=None, description="Absolute Y for a floating window."),
-    center: bool = Field(default=False, description="Centre a floating window on its output."),
-    to_mouse: bool = Field(default=False, description="Move a floating window to the pointer."),
-    to_mark: str | None = Field(default=None, description="Move onto the container with this mark."),
-    to_scratchpad: bool = Field(default=False, description="Move the container to the scratchpad."),
-    swap_with_mark: str | None = Field(default=None, description="Swap with the container holding this mark."),
-    swap_with_con_id: int | None = Field(default=None, description="Swap with this container id."),
-    swap_with_window_id: int | None = Field(default=None, description="Swap with this X11 window id."),
+    position_x: int | None = Field(default=None, description="Floating window; give position_y too."),
+    position_y: int | None = Field(default=None),
+    center: bool = Field(default=False, description="Centre a floating window."),
+    absolute: bool = Field(
+        default=False, description="With center/position: coordinates span all outputs."
+    ),
+    to_mouse: bool = Field(default=False, description="To the mouse pointer (floating)."),
+    to_mark: str | None = Field(default=None, description="Onto the container with this mark."),
+    to_scratchpad: bool = Field(default=False),
+    swap_with_mark: str | None = Field(default=None),
+    swap_with_con_id: int | None = Field(default=None),
+    swap_with_window_id: int | None = Field(default=None),
 ) -> str:
-    """Move a container to a workspace, output, position, mark, or the scratchpad; or swap two containers.
-
-    Pick exactly one destination. Without `criteria` the focused container moves.
-    """
+    """Move a container to a workspace, output, position, mark or the scratchpad,
+    or swap it with another. Give exactly one destination."""
     has_position = position_x is not None or position_y is not None
     destinations = {
         "direction": direction is not None,
@@ -87,28 +85,27 @@ async def i3_move(
         return render.err(f"Specify only one destination, got: {', '.join(chosen)}.")
 
     if direction is not None:
-        command = f"move {direction.value}"
+        command = f"move {direction}"
         if amount is not None:
-            command += f" {amount} {unit.value}"
+            command += f" {amount} {unit}"
     elif workspace is not None:
         flag = "--no-auto-back-and-forth " if no_auto_back_and_forth else ""
         if workspace in _RELATIVE_WORKSPACES:
             command = f"move container to workspace {workspace}"
         elif by_number:
-            command = f"move {flag}container to workspace number {workspace}"
+            command = f'move {flag}container to workspace number "{escape_value(workspace)}"'
         else:
             command = f'move {flag}container to workspace "{escape_value(workspace)}"'
     elif output is not None:
         subject = "workspace" if move_workspace else "container"
-        command = f"move {subject} to output {output}"
+        command = f'move {subject} to output "{escape_value(output)}"'
     elif has_position:
         if position_x is None or position_y is None:
             return render.err("Give both position_x and position_y, or neither.")
-        command = (
-            f"move absolute position {position_x} {unit.value} {position_y} {unit.value}"
-        )
+        prefix = "move absolute position" if absolute else "move position"
+        command = f"{prefix} {position_x} {unit} {position_y} {unit}"
     elif center:
-        command = "move absolute position center"
+        command = "move absolute position center" if absolute else "move position center"
     elif to_mouse:
         command = "move position mouse"
     elif to_mark is not None:
@@ -123,13 +120,14 @@ async def i3_move(
         else:
             command = f"swap container with id {swap_with_window_id}"
 
-    full = prefix_command(criteria, command)
     if follow and workspace is not None:
         if workspace in _RELATIVE_WORKSPACES:
             follow_cmd = f"workspace {workspace}"
         elif by_number:
-            follow_cmd = f"workspace number {workspace}"
+            follow_cmd = f'workspace number "{escape_value(workspace)}"'
         else:
             follow_cmd = f'workspace "{escape_value(workspace)}"'
-        full = f"{full}; {follow_cmd}"
-    return render.run(full)
+        # The ";" ends the criteria's scope in i3, so the follow-up switch runs
+        # unconditionally -- exactly as it did when the prefix was applied here.
+        command = f"{command}; {follow_cmd}"
+    return render.run_targeted(criteria, command)

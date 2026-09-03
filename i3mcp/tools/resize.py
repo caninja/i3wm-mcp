@@ -7,9 +7,9 @@ from typing import Literal
 from pydantic import Field
 
 from .. import render
-from ..criteria import WindowCriteria, prefix_command
-from ..enums import Direction, Unit
-from ..server import mcp, resolve_defaults
+from ..criteria import WindowCriteria
+from ..enums import Unit
+from ..server import mcp
 
 
 @mcp.tool(
@@ -22,50 +22,42 @@ from ..server import mcp, resolve_defaults
         "openWorldHint": False,
     },
 )
-@resolve_defaults
 async def i3_resize(
-    mode: Literal["grow", "shrink", "set"] = Field(
-        description="grow or shrink by an amount, or set an absolute size."
+    mode: Literal["grow", "shrink", "set"] = Field(),
+    criteria: WindowCriteria | None = Field(default=None),
+    direction: Literal["width", "height", "left", "right", "up", "down"] | None = Field(
+        default=None, description="Required for grow/shrink: edge or dimension."
     ),
-    criteria: WindowCriteria | None = Field(
-        default=None, description="Which window to resize. Omit for the focused one."
-    ),
-    direction: Direction | None = Field(
-        default=None, description="Required for grow and shrink: which edge moves."
-    ),
-    amount: int = Field(default=10, description="How much to grow or shrink.", ge=1),
-    width: int | None = Field(default=None, description="For mode=set: target width."),
-    height: int | None = Field(default=None, description="For mode=set: target height."),
+    amount: int = Field(default=10, description="Grow/shrink step.", ge=1),
+    width: int | None = Field(default=None, description="mode=set: target width."),
+    height: int | None = Field(default=None, description="mode=set: target height."),
     unit: Unit = Field(
-        default=Unit.PX,
-        description="px for pixels, ppt for percent of the parent container.",
+        default="px",
+        description="ppt is percent of the parent container.",
     ),
 ) -> str:
-    """Grow, shrink, or set the size of a container.
-
-    ppt works on tiled containers; px suits floating ones.
-    """
+    """Grow, shrink, or set a container's size. ppt suits tiling, px floating."""
     if mode == "set":
         if width is None and height is None:
             return render.err("mode=set needs width, height, or both.")
         parts = ["resize set"]
         if width is not None:
-            parts.append(f"width {width} {unit.value}")
+            parts.append(f"width {width} {unit}")
         if height is not None:
-            parts.append(f"height {height} {unit.value}")
+            parts.append(f"height {height} {unit}")
         command = " ".join(parts)
     else:
         if direction is None:
             return render.err(f"mode={mode} needs a direction.")
-        if unit == Unit.PPT:
+        if unit == "ppt":
             # i3 4.25.1's grammar for resize grow/shrink requires a px amount;
             # ppt is only accepted as a fallback "or" clause (verified live:
             # a bare "resize grow right 1 ppt" is a parse error -- "Expected
             # one of these tokens: 'px', 'or', <end>"). resize set has no such
             # restriction. Re-using amount for both satisfies the grammar and
             # gives the intended ppt behaviour on a tiling container.
-            command = f"resize {mode} {direction.value} {amount} px or {amount} ppt"
+            command = f"resize {mode} {direction} {amount} px or {amount} ppt"
         else:
-            command = f"resize {mode} {direction.value} {amount} {unit.value}"
+            command = f"resize {mode} {direction} {amount} {unit}"
 
-    return render.run(prefix_command(criteria, command))
+    return render.run_targeted(criteria, command)

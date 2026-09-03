@@ -11,7 +11,7 @@ from typing import Literal
 from pydantic import Field
 
 from .. import render
-from ..server import mcp, resolve_defaults
+from ..server import mcp
 
 
 @mcp.tool(
@@ -24,21 +24,17 @@ from ..server import mcp, resolve_defaults
         "openWorldHint": False,
     },
 )
-@resolve_defaults
 async def i3_gaps(
-    amount: int = Field(description="Size in pixels. 0 is valid and removes the gap.", ge=0, le=500),
+    amount: int = Field(description="Pixels; 0 removes the gap.", ge=0, le=500),
     gap: Literal[
         "inner", "outer", "horizontal", "vertical", "top", "right", "bottom", "left"
-    ] = Field(default="inner", description="Which gap to change."),
+    ] = Field(default="inner"),
     operation: Literal["set", "plus", "minus", "toggle"] = Field(
-        default="set", description="Set an absolute size, adjust it, or toggle between it and zero."
+        default="set", description="toggle flips between the amount and 0."
     ),
     scope: Literal["current", "all"] = Field(
-        default="current", description="The current workspace, or every workspace."
+        default="current", description="Which workspaces."
     ),
 ) -> str:
-    """Set or adjust gaps between windows (inner) or around workspace edges (outer).
-
-    amount=0 is meaningful: it removes the gap.
-    """
+    """Set or adjust gaps between windows (inner) or at workspace edges (outer)."""
     return render.run(f"gaps {gap} {scope} {operation} {amount}")

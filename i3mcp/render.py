@@ -1,14 +1,16 @@
-"""Response shaping. Every tool returns a JSON string unless asked for markdown."""
+"""Response shaping. Every tool returns a JSON string."""
 
 from __future__ import annotations
 
 import json
 from typing import Any
 
-from . import ipc
+from . import ipc, tree
+from .criteria import WindowCriteria, prefix_command
 from .ipc import I3Error
 
 CHARACTER_LIMIT = 25000
+TARGET_LIMIT = 20
 
 
 def _dump(payload: dict) -> str:
@@ -23,16 +25,75 @@ def err(message: str, **fields: Any) -> str:
     return _dump({"success": False, "error": message, **fields})
 
 
+def command_error(command: str, exc: I3Error, **extra: Any) -> str:
+    """Render a failed i3 command, carrying i3's own replies when it gave any."""
+    payload: dict[str, Any] = {"command": command, **extra}
+    if exc.replies is not None:
+        payload["i3_replies"] = exc.replies
+    return err(str(exc), **payload)
+
+
 def run(command: str, **extra: Any) -> str:
     """Run an i3 command and render the outcome."""
     try:
-        replies = ipc.get_connection().command(command)
+        ipc.get_connection().command(command)
     except I3Error as exc:
-        payload: dict[str, Any] = {"command": command, **extra}
-        if exc.replies is not None:
-            payload["i3_replies"] = exc.replies
-        return err(str(exc), **payload)
-    return ok(command=command, replies=replies, **extra)
+        return command_error(command, exc, **extra)
+    return ok(command=command, **extra)
+
+
+URGENT_NOTE = "i3 acts on one urgent window; these are the candidates."
+
+
+def _target(record: dict) -> dict:
+    """Identify one window, staying compact: a key the record lacks is left out."""
+    fields = {
+        "con_id": record.get("con_id"),
+        "name": record.get("name"),
+        "window_class": record.get("window_class"),
+    }
+    return {key: value for key, value in fields.items() if value is not None}
+
+
+def run_targeted(criteria: WindowCriteria | None, command: str, **extra: Any) -> str:
+    """Run a command against the windows it will actually hit, or refuse to run it.
+
+    i3 answers success even when criteria match nothing, so resolve the targets
+    from the tree first and report them alongside the command.
+    """
+    try:
+        records = tree.walk_windows(ipc.get_connection().query(ipc.GET_TREE))
+    except I3Error as exc:
+        return err(str(exc))
+    records = tree.filter_windows(records)
+
+    if criteria is None or criteria.is_empty():
+        focused = tree.find_focused(records)
+        targets = [focused] if focused is not None else []
+    else:
+        try:
+            criteria.validate_patterns()
+            targets = [record for record in records if criteria.matches(record)]
+        except ValueError as exc:
+            return err(str(exc))
+        if not targets:
+            return err(
+                "No window matches the criteria.",
+                criteria=criteria.to_selector(),
+                hint="List windows with i3_query; con_id is the most reliable selector.",
+            )
+        if criteria.urgent is not None and len(targets) > 1:
+            # i3's cmd_criteria_match_windows keeps only the single most (or
+            # least) recently urgent container, and the records carry no
+            # urgency timestamp to reproduce that choice here.
+            extra["note"] = URGENT_NOTE
+
+    return run(
+        prefix_command(criteria, command),
+        targets=[_target(record) for record in targets[:TARGET_LIMIT]],
+        target_count=len(targets),
+        **extra,
+    )
 
 
 def json_list(key: str, items: list, limit: int = CHARACTER_LIMIT, **fields: Any) -> str:
@@ -51,41 +112,3 @@ def json_list(key: str, items: list, limit: int = CHARACTER_LIMIT, **fields: Any
         overflow = len(out) - limit
         drop = max(1, int(len(kept) * overflow / len(out)) + 1)
         kept = kept[: max(0, len(kept) - drop)]
-
-
-def markdown(text: str, limit: int = CHARACTER_LIMIT) -> str:
-    if len(text) <= limit:
-        return text
-    notice = (
-        f"\n\n---\n**Response truncated** (exceeded {limit} characters). "
-        "Narrow the filters to see the rest."
-    )
-    return text[:limit] + notice
-
-
-def window_lines(records: list[dict]) -> str:
-    """Render window records as a compact markdown list."""
-    if not records:
-        return "No windows match.\n"
-    lines = []
-    for record in records:
-        flags = []
-        if record.get("focused"):
-            flags.append("focused")
-        if record.get("floating"):
-            flags.append("floating")
-        if record.get("urgent"):
-            flags.append("urgent")
-        if record.get("fullscreen"):
-            flags.append("fullscreen")
-        marks = record.get("marks") or []
-        if marks:
-            flags.append("marks: " + ", ".join(marks))
-        suffix = f" [{'; '.join(flags)}]" if flags else ""
-        lines.append(
-            f"- **{record.get('name') or 'Untitled'}**{suffix}\n"
-            f"  - class: `{record.get('window_class')}`  instance: `{record.get('instance')}`\n"
-            f"  - workspace: `{record.get('workspace')}`  output: `{record.get('output')}`\n"
-            f"  - con_id: `{record.get('con_id')}`  window_id: `{record.get('window_id')}`\n"
-        )
-    return "".join(lines)
