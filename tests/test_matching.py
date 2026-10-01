@@ -329,3 +329,23 @@ async def test_focus_on_an_empty_workspace_reports_the_workspace(fake):
     fake.query_replies[ipc.GET_TREE] = root
     result = json.loads(await call("i3_layout", layout="tabbed"))
     assert result["targets"] == [{"con_id": 1303, "type": "workspace", "windows": 0}]
+
+
+def test_zero_match_offers_case_insensitive_near_misses(fake):
+    result = json.loads(render.run_targeted(WindowCriteria(window_class="alph"), "kill"))
+    assert result["success"] is False
+    assert result["near_misses"] == [{"con_id": 1001, "name": "alpha one", "window_class": "Alpha"}]
+    assert "substring" in result["hint"]
+    assert fake.commands == []
+
+
+def test_near_misses_keep_the_non_string_fields(fake):
+    # Gamma would match the loosened class, but it is not floating.
+    criteria = WindowCriteria(window_class="gamma", floating=True)
+    result = json.loads(render.run_targeted(criteria, "kill"))
+    assert "near_misses" not in result
+
+
+def test_regex_criteria_get_no_near_misses(fake):
+    result = json.loads(render.run_targeted(WindowCriteria(window_class="^alpha$", match="regex"), "kill"))
+    assert "near_misses" not in result

@@ -129,6 +129,20 @@ class WindowCriteria(BaseModel):
         # `all` puts no condition on a window, so it adds no clause here.
         return True
 
+    def loosened(self) -> "WindowCriteria | None":
+        """The same criteria with every string field a case-insensitive substring,
+        or None when that would change nothing (regex mode, or no string fields)."""
+        if self.match == "regex":
+            return None
+        update = {
+            field: f"(?i){re.escape(value)}"
+            for field, value in self._string_fields()
+            if value is not None
+        }
+        if not update:
+            return None
+        return self.model_copy(update={**update, "match": "regex"})
+
     def is_empty(self) -> bool:
         return not self.to_selector()
 
