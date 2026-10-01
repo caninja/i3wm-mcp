@@ -273,3 +273,34 @@ async def test_exec_reports_an_oserror_from_the_subscribe_handshake(fake, monkey
     assert result["success"] is False
     assert "Cannot subscribe to i3 events" in result["error"]
     assert fake.commands == []
+
+
+OTHER_WINDOW = {
+    "change": "new",
+    "container": {"id": 555, "window": 777, "name": "popup", "window_properties": {"class": "Other"}},
+}
+
+
+async def test_wait_match_skips_unrelated_new_windows(fake, monkeypatch):
+    # Another app's popup can open in the same instant as the launched window.
+    _stream(monkeypatch, fake, [OTHER_WINDOW, NEW_WINDOW])
+    result = json.loads(
+        await call("i3_wm", action="exec", command="xterm", wait_seconds=2, wait_match="xterm")
+    )
+    assert result["window"]["con_id"] == 94208
+
+
+async def test_wait_match_also_matches_the_title(fake, monkeypatch):
+    _stream(monkeypatch, fake, [OTHER_WINDOW, NEW_WINDOW])
+    result = json.loads(
+        await call("i3_wm", action="exec", command="xterm", wait_seconds=2, wait_match="PROBE")
+    )
+    assert result["window"]["con_id"] == 94208
+
+
+async def test_wait_match_with_no_match_times_out(fake, monkeypatch):
+    _stream(monkeypatch, fake, [OTHER_WINDOW])
+    result = json.loads(
+        await call("i3_wm", action="exec", command="xterm", wait_seconds=0.5, wait_match="xterm")
+    )
+    assert result["timed_out"] is True

@@ -84,6 +84,36 @@ def _record(
     return _compact(record)
 
 
+def workspace_record(workspace: dict) -> dict:
+    """One GET_WORKSPACES entry, compacted the way window records are."""
+    num = workspace.get("num")
+    return _compact(
+        {
+            "con_id": workspace.get("id"),
+            "num": num if isinstance(num, int) and num >= 0 else None,
+            "name": workspace.get("name"),
+            "output": workspace.get("output"),
+            "rect": _rect_list(workspace.get("rect")),
+            "focused": bool(workspace.get("focused")),
+            "visible": bool(workspace.get("visible")),
+            "urgent": bool(workspace.get("urgent")),
+        }
+    )
+
+
+def output_record(output: dict) -> dict:
+    """One GET_OUTPUTS entry, compacted; an inactive output keeps only its name and rect."""
+    return _compact(
+        {
+            "name": output.get("name"),
+            "rect": _rect_list(output.get("rect")),
+            "active": bool(output.get("active")),
+            "primary": bool(output.get("primary")),
+            "current_workspace": output.get("current_workspace"),
+        }
+    )
+
+
 def walk_windows(tree: dict) -> list[dict]:
     """Flatten the tree into window records, tagged with workspace and output."""
     records: list[dict] = []
@@ -199,6 +229,25 @@ def find_focused(records: list[dict]) -> dict | None:
         if record.get("focused"):
             return record
     return None
+
+
+def find_focused_node(tree_root: dict) -> dict | None:
+    """The raw node i3 marks focused: a window, a split container or a workspace."""
+    pending = [tree_root]
+    while pending:
+        node = pending.pop()
+        if node.get("focused"):
+            return node
+        pending.extend(node.get("nodes") or [])
+        pending.extend(node.get("floating_nodes") or [])
+    return None
+
+
+def count_windows(node: dict) -> int:
+    """How many windows sit at or below this node, floating ones included."""
+    own = 1 if node.get("window") else 0
+    children = (node.get("nodes") or []) + (node.get("floating_nodes") or [])
+    return own + sum(count_windows(child) for child in children)
 
 
 def _percent(node: dict) -> float | None:

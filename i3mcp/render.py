@@ -14,7 +14,7 @@ TARGET_LIMIT = 20
 
 
 def _dump(payload: dict) -> str:
-    return json.dumps(payload, indent=2)
+    return json.dumps(payload, separators=(",", ":"))
 
 
 def ok(**fields: Any) -> str:
@@ -46,13 +46,49 @@ URGENT_NOTE = "i3 acts on one urgent window; these are the candidates."
 
 
 def _target(record: dict) -> dict:
-    """Identify one window, staying compact: a key the record lacks is left out."""
+    """Identify one window, staying compact: a key the record lacks is left out.
+
+    A container target from _focused_targets is already in its final shape."""
+    if "windows" in record:
+        return record
     fields = {
         "con_id": record.get("con_id"),
         "name": record.get("name"),
         "window_class": record.get("window_class"),
     }
     return {key: value for key, value in fields.items() if value is not None}
+
+
+def _focused_targets(root: dict, records: list[dict]) -> list[dict]:
+    """What an unprefixed command acts on: the focused window, or after
+    `focus parent` the focused container (an empty workspace, at worst)."""
+    node = tree.find_focused_node(root)
+    if node is None:
+        return []
+    if node.get("window"):
+        return [record for record in records if record.get("con_id") == node.get("id")]
+    return [{"con_id": node.get("id"), "type": node.get("type"), "windows": tree.count_windows(node)}]
+
+
+NO_MATCH_HINT = "List windows with i3_query; con_id is the most reliable selector."
+NEAR_MISS_HINT = (
+    "Matching is case-sensitive and, by default, exact. These match case-insensitively "
+    "as substrings: retry with one's con_id, or match='substring'."
+)
+
+
+def _no_match(criteria: WindowCriteria, records: list[dict]) -> str:
+    """Refuse a zero-match command, naming windows a looser match would have hit."""
+    loose = criteria.loosened()
+    near = [record for record in records if loose.matches(record)] if loose else []
+    if not near:
+        return err("No window matches the criteria.", criteria=criteria.to_selector(), hint=NO_MATCH_HINT)
+    return err(
+        "No window matches the criteria.",
+        criteria=criteria.to_selector(),
+        near_misses=[_target(record) for record in near[:5]],
+        hint=NEAR_MISS_HINT,
+    )
 
 
 def run_targeted(criteria: WindowCriteria | None, command: str, **extra: Any) -> str:
@@ -62,14 +98,13 @@ def run_targeted(criteria: WindowCriteria | None, command: str, **extra: Any) ->
     from the tree first and report them alongside the command.
     """
     try:
-        records = tree.walk_windows(ipc.get_connection().query(ipc.GET_TREE))
+        root = ipc.get_connection().query(ipc.GET_TREE)
     except I3Error as exc:
         return err(str(exc))
-    records = tree.filter_windows(records)
+    records = tree.filter_windows(tree.walk_windows(root))
 
     if criteria is None or criteria.is_empty():
-        focused = tree.find_focused(records)
-        targets = [focused] if focused is not None else []
+        targets = _focused_targets(root, records)
     else:
         try:
             criteria.validate_patterns()
@@ -77,11 +112,7 @@ def run_targeted(criteria: WindowCriteria | None, command: str, **extra: Any) ->
         except ValueError as exc:
             return err(str(exc))
         if not targets:
-            return err(
-                "No window matches the criteria.",
-                criteria=criteria.to_selector(),
-                hint="List windows with i3_query; con_id is the most reliable selector.",
-            )
+            return _no_match(criteria, records)
         if criteria.urgent is not None and len(targets) > 1:
             # i3's cmd_criteria_match_windows keeps only the single most (or
             # least) recently urgent container, and the records carry no

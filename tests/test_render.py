@@ -48,3 +48,9 @@ def test_json_list_untruncated_has_no_truncation_keys():
     parsed = json.loads(render.json_list("windows", [{"a": 1}]))
     assert "truncated" not in parsed
     assert parsed["count"] == 1
+
+
+def test_replies_are_compact_json():
+    out = render.ok(command="nop", targets=[{"con_id": 1}])
+    assert "\n" not in out
+    assert ", " not in out and ": " not in out

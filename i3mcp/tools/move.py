@@ -120,7 +120,9 @@ async def i3_move(
         else:
             command = f"swap container with id {swap_with_window_id}"
 
-    if follow and workspace is not None:
+    # "current" already is where focus is, and `workspace current` would create
+    # a workspace by that name (seen live on i3 4.25.1), so it has nothing to follow.
+    if follow and workspace is not None and workspace != "current":
         if workspace in _RELATIVE_WORKSPACES:
             follow_cmd = f"workspace {workspace}"
         elif by_number:

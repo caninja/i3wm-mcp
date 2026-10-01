@@ -11,7 +11,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from .enums import MatchMode, Urgency, WindowType
+from .enums import MatchMode, Urgency
 
 
 def escape_value(value: str) -> str:
@@ -20,10 +20,15 @@ def escape_value(value: str) -> str:
 
 
 def pattern_for(value: str, mode: MatchMode) -> str:
-    """Build the PCRE i3 should match against."""
+    r"""Build the PCRE i3 should match against, escaped for a double-quoted value.
+
+    A literal \E would end \Q...\E early, so each one closes the quoting,
+    matches an escaped backslash and an E, and reopens it.
+    """
     if mode == "regex":
-        return value
-    quoted = f"\\Q{value}\\E"
+        return escape_value(value)
+    segments = [escape_value(segment) for segment in value.split("\\E")]
+    quoted = "\\Q" + "\\E\\\\\\\\E\\Q".join(segments) + "\\E"
     if mode == "substring":
         return quoted
     return f"^{quoted}$"
@@ -62,7 +67,7 @@ class WindowCriteria(BaseModel):
     )
     title: str | None = Field(default=None)
     window_role: str | None = Field(default=None)
-    window_type: WindowType | None = Field(default=None)
+    window_type: str | None = Field(default=None, description="e.g. 'dialog'.")
     con_mark: str | None = Field(default=None)
     workspace: str | None = Field(default=None, description="Workspace it is on.")
     con_id: int | None = Field(
@@ -124,6 +129,20 @@ class WindowCriteria(BaseModel):
         # `all` puts no condition on a window, so it adds no clause here.
         return True
 
+    def loosened(self) -> "WindowCriteria | None":
+        """The same criteria with every string field a case-insensitive substring,
+        or None when that would change nothing (regex mode, or no string fields)."""
+        if self.match == "regex":
+            return None
+        update = {
+            field: f"(?i){re.escape(value)}"
+            for field, value in self._string_fields()
+            if value is not None
+        }
+        if not update:
+            return None
+        return self.model_copy(update={**update, "match": "regex"})
+
     def is_empty(self) -> bool:
         return not self.to_selector()
 
@@ -140,10 +159,10 @@ class WindowCriteria(BaseModel):
         ]
         for key, value in string_fields:
             if value is not None:
-                pattern = pattern_for(escape_value(value), self.match)
+                pattern = pattern_for(value, self.match)
                 parts.append(f'{key}="{pattern}"')
         if self.window_type is not None:
-            parts.append(f'window_type="{self.window_type}"')
+            parts.append(f'window_type="{escape_value(self.window_type)}"')
         if self.con_id is not None:
             parts.append(f"con_id={self.con_id}")
         if self.window_id is not None:

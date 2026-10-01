@@ -81,3 +81,31 @@ def test_prefix_command_without_criteria_is_bare():
 def test_prefix_command_with_criteria():
     got = prefix_command(WindowCriteria(con_mark="term"), "kill")
     assert got == r'[con_mark="^\Qterm\E$"] kill'
+
+
+def test_literal_backslash_e_does_not_end_the_quoting():
+    # PCRE cannot quote \E inside \Q...\E: close, match a literal backslash and
+    # E, reopen. Backslashes the PCRE needs are doubled for i3's string parser.
+    assert pattern_for(r"a\Eb", "exact") == r"^\Qa\E\\\\E\Qb\E$"
+
+
+def test_quote_and_backslash_in_a_value_are_escaped_for_i3():
+    assert pattern_for('say "hi" \\ bye', "substring") == r'\Qsay \"hi\" \\ bye\E'
+
+
+def test_regex_values_are_escaped_for_i3_only():
+    assert pattern_for(r'\d "x"', "regex") == r'\\d \"x\"'
+
+
+def test_window_type_is_a_plain_string_and_is_escaped():
+    got = WindowCriteria(window_type='dia"log').to_selector()
+    assert got == r'[window_type="dia\"log"]'
+
+
+def test_urgent_takes_only_latest_or_oldest():
+    import pydantic
+    import pytest
+
+    assert WindowCriteria(urgent="oldest").to_selector() == "[urgent=oldest]"
+    with pytest.raises(pydantic.ValidationError):
+        WindowCriteria(urgent="newest")
