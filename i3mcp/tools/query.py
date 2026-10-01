@@ -11,12 +11,12 @@ from ..ipc import I3Error
 from ..server import mcp
 
 _SIMPLE_QUERIES = {
-    "workspaces": (ipc.GET_WORKSPACES, "workspaces"),
-    "outputs": (ipc.GET_OUTPUTS, "outputs"),
-    "marks": (ipc.GET_MARKS, "marks"),
-    "version": (ipc.GET_VERSION, "version"),
-    "binding_modes": (ipc.GET_BINDING_MODES, "binding_modes"),
-    "binding_state": (ipc.GET_BINDING_STATE, "binding_state"),
+    "workspaces": (ipc.GET_WORKSPACES, "workspaces", tree.workspace_record),
+    "outputs": (ipc.GET_OUTPUTS, "outputs", tree.output_record),
+    "marks": (ipc.GET_MARKS, "marks", None),
+    "version": (ipc.GET_VERSION, "version", None),
+    "binding_modes": (ipc.GET_BINDING_MODES, "binding_modes", None),
+    "binding_state": (ipc.GET_BINDING_STATE, "binding_state", None),
 }
 
 
@@ -121,10 +121,10 @@ async def i3_query(
                 return render.ok(bar_config=data)
             return render.ok(bar_ids=data, hint="Pass bar_id to read one bar's configuration.")
 
-        msg_type, key = _SIMPLE_QUERIES[what]
+        msg_type, key, shape = _SIMPLE_QUERIES[what]
         data = conn.query(msg_type)
         if isinstance(data, list):
-            return render.json_list(key, data)
+            return render.json_list(key, [shape(item) for item in data] if shape else data)
         return render.ok(**{key: data})
     except I3Error as exc:
         return render.err(str(exc), what=what)

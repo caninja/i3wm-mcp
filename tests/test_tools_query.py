@@ -90,3 +90,41 @@ async def test_query_tree_workspace_num_filter_matches_digits(fake):
     fake.query_replies[ipc.GET_TREE] = t
     result = json.loads(await call("i3_query", what="tree", workspace="3"))
     assert {w["con_id"] for w in result["windows"]} == {2, 4}
+
+
+@pytest.mark.asyncio
+async def test_query_workspaces_records_are_compact(fake):
+    fake.query_replies[ipc.GET_WORKSPACES] = [
+        {
+            "id": 77, "num": 2, "name": "2: mail", "visible": True, "focused": False,
+            "urgent": False, "output": "OUT-1",
+            "rect": {"x": 0, "y": 20, "width": 800, "height": 580},
+        },
+        {
+            "id": 78, "num": -1, "name": "notes", "visible": False, "focused": False,
+            "urgent": False, "output": "OUT-1",
+            "rect": {"x": 0, "y": 20, "width": 800, "height": 580},
+        },
+    ]
+    result = json.loads(await call("i3_query", what="workspaces"))
+    assert result["workspaces"] == [
+        {"con_id": 77, "num": 2, "name": "2: mail", "output": "OUT-1",
+         "rect": [0, 20, 800, 580], "visible": True},
+        {"con_id": 78, "name": "notes", "output": "OUT-1", "rect": [0, 20, 800, 580]},
+    ]
+
+
+@pytest.mark.asyncio
+async def test_query_outputs_records_are_compact(fake):
+    fake.query_replies[ipc.GET_OUTPUTS] = [
+        {"name": "OUT-1", "active": True, "primary": True, "current_workspace": "1",
+         "rect": {"x": 0, "y": 0, "width": 800, "height": 600}},
+        {"name": "OUT-2", "active": False, "primary": False, "current_workspace": None,
+         "rect": {"x": 0, "y": 0, "width": 0, "height": 0}},
+    ]
+    result = json.loads(await call("i3_query", what="outputs"))
+    assert result["outputs"] == [
+        {"name": "OUT-1", "rect": [0, 0, 800, 600], "active": True, "primary": True,
+         "current_workspace": "1"},
+        {"name": "OUT-2", "rect": [0, 0, 0, 0]},
+    ]
