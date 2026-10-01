@@ -11,7 +11,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from .enums import MatchMode, Urgency, WindowType
+from .enums import MatchMode, Urgency
 
 
 def escape_value(value: str) -> str:
@@ -67,7 +67,7 @@ class WindowCriteria(BaseModel):
     )
     title: str | None = Field(default=None)
     window_role: str | None = Field(default=None)
-    window_type: WindowType | None = Field(default=None)
+    window_type: str | None = Field(default=None, description="e.g. 'dialog'.")
     con_mark: str | None = Field(default=None)
     workspace: str | None = Field(default=None, description="Workspace it is on.")
     con_id: int | None = Field(
@@ -162,7 +162,7 @@ class WindowCriteria(BaseModel):
                 pattern = pattern_for(value, self.match)
                 parts.append(f'{key}="{pattern}"')
         if self.window_type is not None:
-            parts.append(f'window_type="{self.window_type}"')
+            parts.append(f'window_type="{escape_value(self.window_type)}"')
         if self.con_id is not None:
             parts.append(f"con_id={self.con_id}")
         if self.window_id is not None:

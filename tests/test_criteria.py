@@ -95,3 +95,17 @@ def test_quote_and_backslash_in_a_value_are_escaped_for_i3():
 
 def test_regex_values_are_escaped_for_i3_only():
     assert pattern_for(r'\d "x"', "regex") == r'\\d \"x\"'
+
+
+def test_window_type_is_a_plain_string_and_is_escaped():
+    got = WindowCriteria(window_type='dia"log').to_selector()
+    assert got == r'[window_type="dia\"log"]'
+
+
+def test_urgent_takes_only_latest_or_oldest():
+    import pydantic
+    import pytest
+
+    assert WindowCriteria(urgent="oldest").to_selector() == "[urgent=oldest]"
+    with pytest.raises(pydantic.ValidationError):
+        WindowCriteria(urgent="newest")

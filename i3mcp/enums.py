@@ -14,20 +14,8 @@ Direction = Literal["left", "right", "up", "down"]
 
 MatchMode = Literal["exact", "substring", "regex"]
 
-Urgency = Literal["latest", "oldest", "newest", "last", "recent", "first"]
-
-WindowType = Literal[
-    "normal",
-    "dialog",
-    "utility",
-    "toolbar",
-    "splash",
-    "menu",
-    "dropdown_menu",
-    "popup_menu",
-    "tooltip",
-    "notification",
-]
+# i3 also takes newest/recent/last and first as synonyms; two words say it all.
+Urgency = Literal["latest", "oldest"]
 
 Unit = Literal["px", "ppt"]
 
