@@ -299,3 +299,33 @@ async def test_an_invalid_regex_is_reported_as_an_error(fake):
     assert result["success"] is False
     assert "title" in result["error"]
     assert fake.commands == []
+
+
+async def test_focus_on_a_split_container_reports_the_container(fake):
+    # After `focus parent`, i3 marks the split container focused, not a window.
+    root = fixture_tree()
+    workspace = root["nodes"][0]["nodes"][0]["nodes"][0]
+    alpha = workspace["nodes"][0]
+    alpha["focused"] = False
+    workspace["nodes"] = [
+        {"type": "con", "id": 1201, "layout": "splitv", "focused": True,
+         "nodes": [alpha], "floating_nodes": []}
+    ]
+    fake.query_replies[ipc.GET_TREE] = root
+    result = json.loads(await call("i3_layout", layout="tabbed"))
+    assert fake.last_command == "layout tabbed"
+    assert result["targets"] == [{"con_id": 1201, "type": "con", "windows": 1}]
+    assert result["target_count"] == 1
+
+
+async def test_focus_on_an_empty_workspace_reports_the_workspace(fake):
+    root = fixture_tree()
+    node(root, 1001)["focused"] = False
+    content = root["nodes"][0]["nodes"][0]
+    content["nodes"].append(
+        {"type": "workspace", "id": 1303, "name": "3", "num": 3, "focused": True,
+         "nodes": [], "floating_nodes": []}
+    )
+    fake.query_replies[ipc.GET_TREE] = root
+    result = json.loads(await call("i3_layout", layout="tabbed"))
+    assert result["targets"] == [{"con_id": 1303, "type": "workspace", "windows": 0}]

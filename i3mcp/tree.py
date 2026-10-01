@@ -231,6 +231,25 @@ def find_focused(records: list[dict]) -> dict | None:
     return None
 
 
+def find_focused_node(tree_root: dict) -> dict | None:
+    """The raw node i3 marks focused: a window, a split container or a workspace."""
+    pending = [tree_root]
+    while pending:
+        node = pending.pop()
+        if node.get("focused"):
+            return node
+        pending.extend(node.get("nodes") or [])
+        pending.extend(node.get("floating_nodes") or [])
+    return None
+
+
+def count_windows(node: dict) -> int:
+    """How many windows sit at or below this node, floating ones included."""
+    own = 1 if node.get("window") else 0
+    children = (node.get("nodes") or []) + (node.get("floating_nodes") or [])
+    return own + sum(count_windows(child) for child in children)
+
+
 def _percent(node: dict) -> float | None:
     percent = node.get("percent")
     return round(percent, 2) if isinstance(percent, (int, float)) else None
