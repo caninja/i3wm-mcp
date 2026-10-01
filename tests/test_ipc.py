@@ -102,6 +102,9 @@ class FakeSocket:
         chunk, self.data = self.data[:count], self.data[count:]
         return chunk
 
+    def shutdown(self, how):
+        self.shut_down = how
+
     def close(self):
         self.closed = True
 
@@ -133,6 +136,14 @@ def test_next_event_skips_a_non_event_frame():
     assert stream.next_event(1.0) == event
 
 
+def test_read_event_blocks_without_a_timeout_and_names_the_event():
+    event = {"change": "focus", "current": {"name": "2"}}
+    frames = _frame(ipc.RUN_COMMAND, [{"success": True}]) + _frame(ipc.EVENT_MASK | ipc.EVENT_WORKSPACE, event)
+    sock = FakeSocket(frames)
+    assert ipc.EventStream(sock).read_event() == (ipc.EVENT_WORKSPACE, event)
+    assert sock.timeouts == [None]
+
+
 def test_event_stream_handshake_sends_the_event_list():
     sock = FakeSocket(_frame(ipc.SUBSCRIBE, {"success": True}))
     stream = ipc.EventStream(sock)
@@ -151,6 +162,7 @@ def test_event_stream_closes_its_own_socket():
     with ipc.EventStream(sock) as stream:
         assert stream is not None
     assert sock.closed is True
+    assert sock.shut_down == socket.SHUT_RDWR
 
 
 def _serve_event(srv, event):

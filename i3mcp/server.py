@@ -31,6 +31,7 @@ mcp = I3Server("i3_mcp")
 
 
 def main() -> None:
-    from . import tools  # noqa: F401  (importing registers every tool)
+    from . import events, tools  # noqa: F401  (importing registers every tool)
 
+    events.get_log()  # start logging events now, not at the first i3_events call
     mcp.run()

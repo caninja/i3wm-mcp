@@ -29,8 +29,11 @@ SYNC = 11
 GET_BINDING_STATE = 12
 
 # A frame whose type has the high bit set is an event, not a reply; the low
-# bits are the event number (3 = window).
+# bits are the event number.
 EVENT_MASK = 0x80000000
+EVENT_WORKSPACE = 0
+EVENT_OUTPUT = 1
+EVENT_MODE = 2
 EVENT_WINDOW = 3
 
 
@@ -186,7 +189,20 @@ class EventStream:
             if msg_type & EVENT_MASK:
                 return payload
 
+    def read_event(self) -> tuple[int, Any]:
+        """Block until the next event; return its number and payload."""
+        self._sock.settimeout(None)
+        while True:
+            msg_type, payload = _read_frame(self._sock)
+            if msg_type & EVENT_MASK:
+                return msg_type & ~EVENT_MASK, payload
+
     def close(self) -> None:
+        # shutdown first: a plain close does not wake a thread blocked in recv.
+        try:
+            self._sock.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
         self._sock.close()
 
     def __enter__(self) -> "EventStream":

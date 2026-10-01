@@ -2,6 +2,7 @@
 
 from . import (  # noqa: F401
     bar,
+    events,
     focus,
     gaps,
     kill,
