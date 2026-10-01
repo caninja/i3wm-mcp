@@ -20,8 +20,19 @@ class SubscribeFailed(Exception):
     """ipc.subscribe failed, so the command was never sent."""
 
 
-def _launch_and_wait(cmd: str, wait_seconds: float) -> tuple[dict | None, float]:
-    """Run cmd and return i3's first 'new' window container, plus seconds waited.
+def _is_wanted(container: dict, wait_match: str | None) -> bool:
+    """Without wait_match any new window counts; with it, class or title must contain it."""
+    if wait_match is None:
+        return True
+    props = container.get("window_properties") or {}
+    haystack = f"{props.get('class') or ''}\n{container.get('name') or ''}".lower()
+    return wait_match.lower() in haystack
+
+
+def _launch_and_wait(
+    cmd: str, wait_seconds: float, wait_match: str | None = None
+) -> tuple[dict | None, float]:
+    """Run cmd and return i3's first wanted 'new' window container, plus seconds waited.
 
     Subscribing before the command runs is what makes this reliable: the window
     appears within milliseconds, so a stream opened afterwards can miss it. The
@@ -43,8 +54,9 @@ def _launch_and_wait(cmd: str, wait_seconds: float) -> tuple[dict | None, float]
             event = stream.next_event(remaining)
             if event is None:
                 return None, time.monotonic() - started
-            if event.get("change") == "new":
-                return event.get("container") or {}, time.monotonic() - started
+            container = event.get("container") or {}
+            if event.get("change") == "new" and _is_wanted(container, wait_match):
+                return container, time.monotonic() - started
     finally:
         stream.close()
 
@@ -89,6 +101,10 @@ async def i3_wm(
             "(con_id, class, name) or timed_out=true."
         ),
     ),
+    wait_match: str | None = Field(
+        default=None,
+        description="exec: only a new window whose class or title contains this counts.",
+    ),
 ) -> str:
     """Launch an app, reload or restart i3, switch binding mode, or control logging."""
     if action == "exec":
@@ -100,7 +116,7 @@ async def i3_wm(
         if wait_seconds is None:
             return render.run(cmd)
         try:
-            container, waited = await asyncio.to_thread(_launch_and_wait, cmd, wait_seconds)
+            container, waited = await asyncio.to_thread(_launch_and_wait, cmd, wait_seconds, wait_match)
         except SubscribeFailed as exc:
             return render.err(f"Cannot subscribe to i3 events: {exc}", command=cmd)
         except I3Error as exc:
