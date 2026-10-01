@@ -2,7 +2,7 @@
 
 > **Control i3 window manager with natural language through Claude and other AI assistants**
 
-A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server providing programmatic control of the [i3 window manager](https://i3wm.org/). This server exposes 13 tools covering i3 functionality, enabling AI assistants to manage windows, workspaces, layouts, gaps, and more through natural conversation.
+A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server providing programmatic control of the [i3 window manager](https://i3wm.org/). This server exposes 14 tools covering i3 functionality, enabling AI assistants to manage windows, workspaces, layouts, gaps, and more through natural conversation.
 
 [![MCP](https://img.shields.io/badge/MCP-Compatible-blue)](https://modelcontextprotocol.io/)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -65,7 +65,7 @@ Or edit `~/.claude.json` directly:
 - i3 4.x (developed and verified against 4.25.1)
 - `uv`
 
-Runtime dependencies are `mcp>=2` and `pydantic>=2`, declared in `pyproject.toml`
+Runtime dependencies are `mcp>=2.2` and `pydantic>=2`, declared in `pyproject.toml`
 and resolved automatically by `uv`. There is nothing else to install by hand.
 
 ## Tools
@@ -85,6 +85,7 @@ and resolved automatically by `uv`. There is nothing else to install by hand.
 | `i3_gaps` | Set or adjust inner/outer/edge gaps. |
 | `i3_bar` | Set i3bar's display mode or hidden state. |
 | `i3_wm` | Launch applications, optionally waiting for the new window; reload/restart i3; switch binding mode; or control logging. |
+| `i3_events` | Read window, workspace, output and mode events logged in the background, or wait for one. |
 
 ## Criteria
 
@@ -102,7 +103,28 @@ Every criteria-taking tool reports what it actually hit: the response carries
 `target_count`. When criteria match no window, the tool returns
 `success: false` with `"No window matches the criteria."` and a hint, and
 sends nothing to i3 — it never silently does nothing the way a raw i3 command
-with an empty criteria selector would.
+with an empty criteria selector would. If a case-insensitive substring match
+on the same fields would have hit something, the refusal lists those windows
+as `near_misses` (`i3_query`'s filters are case-insensitive; criteria are not).
+
+With no criteria, the target is whatever i3 has focused: usually a window, but
+after `focus parent` a container, reported as `{con_id, type, windows}`.
+
+## Events
+
+From startup the server keeps a second i3 socket subscribed to window,
+workspace, output and mode events, and logs the last 500. `i3_events` reads
+that log:
+
+- Every reply carries a `cursor`; pass it back as `since` to get only newer
+  events. A cursor older than the log reports `dropped: true`.
+- `wait_seconds` (up to 300) blocks until a matching event arrives, e.g.
+  `i3_events(change="urgent", wait_seconds=120)`, or returns `timed_out: true`.
+- Filter by `event`, `change`, `window_class`/`title` (case-insensitive
+  substrings) or `con_id`.
+- If i3's socket drops (an i3 restart, say), the server resubscribes and logs a
+  `{"event": "watcher", "change": "reconnected"}` entry: events around it may
+  be missing.
 
 ## Verification
 
@@ -131,7 +153,9 @@ Try:
 - `i3_wm(action="exec")` returns as soon as i3 accepts the command, before the
   new window exists. Pass `wait_seconds` (0.1–60) to get the new window's
   record — con_id included — back instead of assuming it's there immediately;
-  past the deadline you get `timed_out: true` rather than an error.
+  past the deadline you get `timed_out: true` rather than an error. It takes
+  the first new window from any app, so pass `wait_match` (a substring of the
+  expected class or title) when something else might open at the same time.
 - `exec` commands may contain `;` and `,` freely — the tool quotes the whole
   command for you, so those characters don't need escaping or splitting into
   separate calls.

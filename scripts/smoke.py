@@ -75,6 +75,7 @@ async def main() -> int:
     original = next((ws["name"] for ws in workspaces if ws.get("focused")), None)
 
     try:
+        events_start = (await check("events cursor", call("i3_events"))).get("cursor", 0)
         await check("workspace switch", call("i3_workspace", action="switch", name=SCRATCH_WS))
 
         # Read-only queries.
@@ -95,10 +96,17 @@ async def main() -> int:
         # Launch a window and wait for it directly, rather than polling
         # i3_query -- exec's wait_seconds hands back the new window's own
         # record, con_id included, which is the criteria the rest of this
-        # run targets by.
+        # run targets by. wait_match keeps another app's window, opening in the
+        # same instant, from being taken for it (it was, once).
         exec_result = await check(
             "wm exec",
-            call("i3_wm", action="exec", command="xterm -T i3mcp-smoke", wait_seconds=5),
+            call(
+                "i3_wm",
+                action="exec",
+                command="xterm -T i3mcp-smoke",
+                wait_seconds=5,
+                wait_match="i3mcp-smoke",
+            ),
         )
         window = exec_result.get("window") or {}
         con_id = window.get("con_id")
@@ -107,7 +115,31 @@ async def main() -> int:
             raise SmokeAborted
 
         by_id = {"con_id": con_id}
+        logged = await check(
+            "events saw the new window",
+            call("i3_events", since=events_start, change="new", con_id=con_id, wait_seconds=2),
+        )
+        expect("new-window event logged", bool(logged.get("events")), f"got {logged!r}")
+
         await check("focus criteria", call("i3_focus", criteria=by_id))
+        # The real class is "XTerm": exact lowercase must refuse, naming it as a near miss.
+        near = json.loads(await call("i3_mark", criteria={"window_class": "xterm"}, mark="smoke_near"))
+        expect(
+            "near miss named, nothing sent",
+            near.get("success") is False
+            and con_id in [t.get("con_id") for t in near.get("near_misses", [])],
+            f"got {near!r}",
+        )
+        await check(
+            "move to current, follow",
+            call("i3_move", criteria=by_id, workspace="current", follow=True),
+        )
+        focused_ws = next((ws["name"] for ws in conn.query(ipc.GET_WORKSPACES) if ws.get("focused")), None)
+        expect(
+            "follow to current stays put",
+            focused_ws == SCRATCH_WS,
+            f"focused workspace is {focused_ws!r}, expected {SCRATCH_WS!r}",
+        )
         await check("mark set", call("i3_mark", criteria=by_id, mark="smoke"))
         by_mark = {"con_mark": "smoke"}
         await check("layout tabbed", call("i3_layout", criteria=by_mark, layout="tabbed"))
@@ -156,7 +188,12 @@ async def main() -> int:
         await check("scratchpad show by criteria", call("i3_scratchpad", action="show", criteria=by_mark))
         await check("mark unmark", call("i3_mark", criteria=by_mark, unmark="smoke"))
 
+        closed = call("i3_events", con_id=con_id, change="close", wait_seconds=3)
+        closed_task = asyncio.ensure_future(closed)
+        await asyncio.sleep(0.1)  # let the wait register before the window goes
         await check("kill", call("i3_kill", criteria=by_id))
+        closed_result = json.loads(await closed_task)
+        expect("close event waited for", bool(closed_result.get("events")), f"got {closed_result!r}")
         expect(
             "window gone after kill",
             await wait_until_gone(conn, con_id),
