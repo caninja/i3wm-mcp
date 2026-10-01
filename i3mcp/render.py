@@ -14,7 +14,7 @@ TARGET_LIMIT = 20
 
 
 def _dump(payload: dict) -> str:
-    return json.dumps(payload, indent=2)
+    return json.dumps(payload, separators=(",", ":"))
 
 
 def ok(**fields: Any) -> str:

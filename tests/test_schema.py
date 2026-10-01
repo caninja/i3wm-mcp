@@ -10,11 +10,11 @@ from i3mcp.schema import compact
 from i3mcp.server import mcp
 
 # A ceiling with headroom, not a target. Measured: 43,609 chars before compaction,
-# 29,154 after it, and 23,952 once the argument descriptions were trimmed (run
-# scripts/schema_size.py). The floor is WindowCriteria, whose $defs entry is still
-# spelled out in each of the 8 tools that take criteria (~1.1k x 8 = ~8.9k of what
-# is left).
-SIZE_CEILING = 26_000
+# 29,154 after it, 23,952 once the argument descriptions were trimmed, and 22,142
+# once tools stopped publishing an output schema (run scripts/schema_size.py).
+# The floor is WindowCriteria, whose $defs entry is still spelled out in each of
+# the tools that take criteria.
+SIZE_CEILING = 24_000
 
 # Keys whose values map a name to a schema, so their keys are names, not keywords.
 NAME_MAPS = ("properties", "$defs")
@@ -142,3 +142,16 @@ async def test_total_published_size_stays_under_the_ceiling():
         for tool in tools
     )
     assert total < SIZE_CEILING, f"{total} chars"
+
+
+async def test_tools_publish_no_output_schema():
+    # A str return would otherwise be wrapped as {"result": "<escaped JSON>"}
+    # in structuredContent, which clients show the model instead of the text.
+    for tool in await mcp.list_tools():
+        assert tool.output_schema is None, tool.name
+
+
+async def test_call_results_carry_text_only(fake):
+    result = await mcp.call_tool("i3_query", {"what": "focused"})
+    assert result.structured_content is None
+    assert result.content[0].text.startswith('{"success":true')
