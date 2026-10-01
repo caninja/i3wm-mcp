@@ -20,10 +20,15 @@ def escape_value(value: str) -> str:
 
 
 def pattern_for(value: str, mode: MatchMode) -> str:
-    """Build the PCRE i3 should match against."""
+    r"""Build the PCRE i3 should match against, escaped for a double-quoted value.
+
+    A literal \E would end \Q...\E early, so each one closes the quoting,
+    matches an escaped backslash and an E, and reopens it.
+    """
     if mode == "regex":
-        return value
-    quoted = f"\\Q{value}\\E"
+        return escape_value(value)
+    segments = [escape_value(segment) for segment in value.split("\\E")]
+    quoted = "\\Q" + "\\E\\\\\\\\E\\Q".join(segments) + "\\E"
     if mode == "substring":
         return quoted
     return f"^{quoted}$"
@@ -140,7 +145,7 @@ class WindowCriteria(BaseModel):
         ]
         for key, value in string_fields:
             if value is not None:
-                pattern = pattern_for(escape_value(value), self.match)
+                pattern = pattern_for(value, self.match)
                 parts.append(f'{key}="{pattern}"')
         if self.window_type is not None:
             parts.append(f'window_type="{self.window_type}"')
