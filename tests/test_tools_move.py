@@ -151,3 +151,10 @@ async def test_move_by_number_quotes_a_named_workspace(fake):
     # Verified live on i3 4.25.1: `workspace number "3: web"` parses.
     await call("i3_move", workspace="3: web", by_number=True)
     assert fake.last_command == 'move container to workspace number "3: web"'
+
+
+async def test_move_to_current_workspace_ignores_follow(fake):
+    # `workspace current` is not a keyword: i3 would create a workspace named
+    # "current" and switch to it. The window lands where focus already is.
+    await call("i3_move", workspace="current", follow=True, criteria={"con_id": 1003})
+    assert fake.last_command == "[con_id=1003] move container to workspace current"
