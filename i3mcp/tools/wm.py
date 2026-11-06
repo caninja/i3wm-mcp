@@ -8,7 +8,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from .. import ipc, render, tree
+from .. import commands, ipc, render, tree
 from ..criteria import escape_value
 from ..ipc import I3Error
 from ..server import mcp
@@ -110,9 +110,10 @@ async def i3_wm(
     if action == "exec":
         if not command:
             return render.err("action=exec needs a command.")
-        cmd = f'exec --no-startup-id "{escape_value(command)}"'
-        if workspace:
-            cmd = f'workspace "{escape_value(workspace)}"; {cmd}'
+        try:
+            cmd = commands.exec_command(command, workspace=workspace)
+        except ValueError as exc:
+            return render.err(str(exc))
         if wait_seconds is None:
             return render.run(cmd)
         try:
